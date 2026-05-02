@@ -1,0 +1,36 @@
+# Local dev: n8n self-hosted, pointing at Supabase Postgres.
+# Why self-host for development: free, replicates production topology,
+# and "I run my own n8n" is a stronger portfolio signal than
+# "I subscribe to n8n Cloud."
+#
+# To run:
+#   cp ../../.env.example .env  &&  edit values
+#   docker compose up -d
+#   open http://localhost:5678
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: god_is_typing-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=America/Santiago
+      # Required for AI Agent / LangChain nodes since n8n 1.50+
+      - N8N_RUNNERS_ENABLED=true
+      # External Postgres = Supabase = same DB as the app
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=${POSTGRES_HOST}
+      - DB_POSTGRESDB_PORT=${POSTGRES_PORT:-5432}
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DATABASE:-postgres}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-postgres}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_SCHEMA=n8n   # keep n8n's tables in their own schema
+    volumes:
+      - n8n_data:/home/node/.n8n
+volumes:
+  n8n_data:
