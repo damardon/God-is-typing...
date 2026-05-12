@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="description" content="Habla con las grandes deidades. Sabiduría contemplativa generada con IA.">
+  <meta property="og:title" content="god_is_typing">
+  <meta property="og:description" content="Habla con Hashem, Dios Padre, Buda, los Olímpicos, o tu yo del futuro.">
+  <meta property="og:type" content="website">
+  <title>god_is_typing</title>
+  <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;text y='.9em' font-size='90'&gt;🕊️&lt;/text&gt;&lt;/svg&gt;">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0e0a;
+      --bg-soft: #0f140f;
+      --text: #c9d1c9;
+      --text-dim: #6b7a6b;
+      --accent: #50fa7b;
+      --accent-dim: #2ea043;
+      --warn: #f1fa8c;
+      --danger: #ff5555;
+      --border: #1a221a;
+      --citation: #8be9fd;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0;
+      position: relative;
+    }
+
+    /* Scanline effect */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(transparent 50%, rgba(0,0,0,0.04) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.4;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-soft);
+      flex-shrink: 0;
+    }
+
+    .title {
+      font-size: 14px;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    .title::before {
+      content: "$ ";
+      color: var(--text-dim);
+    }
+
+    .meta {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--bg);
+    }
+
+    main::-webkit-scrollbar { width: 6px; }
+    main::-webkit-scrollbar-track { background: var(--bg); }
+    main::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .msg {
+      max-width: 100%;
+      line-height: 1.6;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .msg-user {
+      color: var(--accent);
+    }
+
+    .msg-user::before {
+      content: "> ";
+      color: var(--text-dim);
+    }
+
+    .msg-bot {
+      color: var(--text);
+      padding-left: 0;
+    }
+
+    .msg-bot::before {
+      content: "↳ ";
+      color: var(--accent-dim);
+    }
+
+    .msg-system {
+      color: var(--text-dim);
+      font-size: 12px;
+      font-style: italic;
+      padding: 8px 0;
+      border-left: 2px solid var(--border);
+      padding-left: 12px;
+    }
+
+    .msg-error {
+      color: var(--danger);
+    }
+
+    .msg-warning {
+      color: var(--warn);
+    }
+
+    .citation {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-left: 2px solid var(--citation);
+      color: var(--citation);
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .typing {
+      color: var(--text-dim);
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    .typing::before {
+      content: "... ";
+    }
+
+    .typing .dots {
+      display: inline-block;
+      animation: blink 1.4s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 14px 20px;
+      background: var(--bg-soft);
+      flex-shrink: 0;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .prompt {
+      color: var(--accent);
+      font-size: 14px;
+      user-select: none;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      caret-color: var(--accent);
+    }
+
+    input[type="text"]::placeholder {
+      color: var(--text-dim);
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      padding: 20px;
+    }
+
+    .modal {
+      background: var(--bg-soft);
+      border: 1px solid var(--accent);
+      max-width: 600px;
+      width: 100%;
+      padding: 30px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal h2 {
+      color: var(--accent);
+      font-size: 16px;
+      margin-bottom: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    .modal h2::before {
+      content: "## ";
+      color: var(--text-dim);
+    }
+
+    .modal p {
+      font-size: 13px;
+      line-height: 1.7;
+      margin-bottom: 14px;
+      color: var(--text);
+    }
+
+    .modal .small {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+    }
+
+    .picker-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .picker-btn {
+      flex: 1;
+      min-width: 130px;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      text-align: left;
+      transition: all 0.15s;
+    }
+
+    .picker-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--bg-soft);
+    }
+
+    .picker-btn.selected {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(80, 250, 123, 0.05);
+    }
+
+    .deity-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    @media (min-width: 600px) {
+      .deity-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .deity-btn {
+      padding: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      text-align: left;
+      transition: all 0.15s;
+    }
+
+    .deity-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .deity-btn .icon {
+      font-size: 20px;
+      margin-right: 8px;
+    }
+
+    .deity-btn .sub {
+      display: block;
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      border: 1px solid var(--accent);
+      padding: 8px 20px;
+      font-weight: bold;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .telegram-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      background: rgba(80, 250, 123, 0.05);
+      border: 1px solid var(--accent-dim);
+      font-size: 12px;
+    }
+
+    .telegram-banner a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .footer-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      header { padding: 10px 14px; }
+      main { padding: 14px; }
+      footer { padding: 10px 14px; }
+      .modal { padding: 20px; }
+      .msg { font-size: 13px; }
+      input[type="text"] { font-size: 16px; } /* avoid iOS zoom */
+    }
+  </style>
+</head>
+<body>
+  <!-- Modal: Disclaimer + Language Picker + Deity Picker -->
+  <div class="modal-overlay" id="onboarding-modal">
+    <div class="modal" id="onboarding-content">
+      <!-- Step 1: Disclaimer + Language -->
+      <div id="step-disclaimer">
+        <h2 id="welcome-title">welcome to god_is_typing</h2>
+        <p id="welcome-intro-1">Soy una representación contemplativa generada con inteligencia artificial.</p>
+        <p id="welcome-intro-2">Mis palabras son una invitación a la reflexión, no una verdad absoluta.</p>
+        <p class="small" id="welcome-privacy">Las conversaciones se guardan de forma anónima para fines experimentales. 3 preguntas cada 24 horas.</p>
+        <p id="lang-prompt">First, choose your language / Primero, elige tu idioma:</p>
+        <div class="picker-row" id="lang-picker">
+          <button class="picker-btn" data-lang="es">🇪🇸 Español</button>
+          <button class="picker-btn" data-lang="en">🇬🇧 English</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Deity Picker -->
+      <div id="step-deity" style="display:none;">
+        <h2 id="deity-title">choose a deity</h2>
+        <p id="deity-intro">¿Con qué deidad quieres conversar?</p>
+        <div class="deity-grid">
+          <button class="deity-btn" data-deity="jewish">
+            <span class="icon">✡️</span>
+            <strong id="lbl-jewish">Judaísmo</strong>
+            <span class="sub" id="sub-jewish">H'shem · Torá, Talmud, Cabalá</span>
+          </button>
+          <button class="deity-btn" data-deity="christian">
+            <span class="icon">✝️</span>
+            <strong id="lbl-christian">Cristianismo</strong>
+            <span class="sub" id="sub-christian">Dios Padre · Biblia, Santos</span>
+          </button>
+          <button class="deity-btn" data-deity="buddhist">
+            <span class="icon">☸️</span>
+            <strong id="lbl-buddhist">Budismo</strong>
+            <span class="sub" id="sub-buddhist">Buda · Dharma, Sutras</span>
+          </button>
+          <button class="deity-btn" data-deity="olympus">
+            <span class="icon">🏛️</span>
+            <strong id="lbl-olympus">Pantheon Griego</strong>
+            <span class="sub" id="sub-olympus">Olimpo · Mitos, tragedias</span>
+          </button>
+          <button class="deity-btn" data-deity="future_self" style="grid-column: 1 / -1;">
+            <span class="icon">🪞</span>
+            <strong id="lbl-future">Tu Yo del Futuro</strong>
+            <span class="sub" id="sub-future">TÚ mismo, 10 años más adelante</span>
+          </button>
+        </div>
+        <div class="modal-actions">
+          <button onclick="goBackToLang()" id="btn-back">← Back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="title" id="header-title">god_is_typing</div>
+    <div class="meta">
+      <span id="deity-indicator">—</span> | <span id="counter">3 left</span>
+    </div>
+  </header>
+
+  <main id="chat">
+    <!-- Telegram banner shown if detected -->
+    <div class="telegram-banner" id="tg-banner" style="display:none;">
+      <span id="tg-banner-text">📱 Telegram detected — prefer the native experience?</span>
+      <a href="https://t.me/god_is_typing_bot" target="_blank" id="tg-banner-link">Open in Telegram →</a>
+    </div>
+  </main>
+
+  <footer>
+    <div class="input-row">
+      <span class="prompt">$</span>
+      <input type="text" id="input" placeholder="Ask your question..." autocomplete="off" disabled>
+      <button id="send-btn" disabled>send</button>
+    </div>
+    <div class="status-bar">
+      <span id="status">— initializing —</span>
+      <div class="footer-actions">
+        <button onclick="changeDeity()">change deity</button>
+        <button onclick="resetSession()">reset</button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ==========================================================================
+    // CONFIG
+    // ==========================================================================
+    const CONFIG = {
+      // Update this URL after deploying n8n with the new web webhook
+      WEBHOOK_URL: 'https://damardon.app.n8n.cloud/webhook/godistyping-web',
+      MAX_QUESTIONS: 3,
+      WINDOW_HOURS: 24,
+      STORAGE_KEY: 'godistyping_state_v1'
+    };
+
+    // ==========================================================================
+    // I18N
+    // ==========================================================================
+    const i18n = {
+      es: {
+        welcomeIntro1: 'Soy una representación contemplativa generada con inteligencia artificial.',
+        welcomeIntro2: 'Mis palabras son una invitación a la reflexión, no una verdad absoluta.',
+        welcomePrivacy: 'Las conversaciones se guardan de forma anónima para fines experimentales. 3 preguntas cada 24 horas.',
+        langPrompt: 'Primero, elige tu idioma:',
+        deityTitle: 'elige una deidad',
+        deityIntro: '¿Con qué deidad quieres conversar?',
+        labels: {
+          jewish: 'Judaísmo',
+          christian: 'Cristianismo',
+          buddhist: 'Budismo',
+          olympus: 'Pantheon Griego',
+          future_self: 'Tu Yo del Futuro'
+        },
+        subs: {
+          jewish: 'Hashem · Torá, Talmud, Cabalá',
+          christian: 'Dios Padre · Biblia, Santos',
+          buddhist: 'Buda · Dharma, Sutras',
+          olympus: 'Olimpo · Mitos, tragedias',
+          future_self: 'TÚ mismo, 10 años más adelante'
+        },
+        back: '← Volver',
+        placeholder: 'Escribe tu pregunta...',
+        thinking: 'Esta escribiendo',
+        send: 'enviar',
+        questionsLeft: (n) => `${n} preguntas restantes`,
+        questionLeft: '1 pregunta restante',
+        noQuestions: 'sin preguntas hoy',
+        errorNetwork: '❌ No pude conectar. Revisa tu conexión e intenta de nuevo.',
+        errorGeneric: '❌ Algo salió mal. Intenta mas tarde.',
+        changeDeity: 'cambiar deidad',
+        reset: 'reiniciar',
+        ready: 'listo',
+        tgBannerText: '📱 Detecté Telegram en tu dispositivo. ¿Prefieres tener a tu deidad en tus chats?',
+        tgBannerLink: 'Abrir en Telegram →',
+        chatStarted: (deity) => `── conversación iniciada con ${deity} ──`
+      },
+      en: {
+        welcomeIntro1: 'I am a contemplative representation generated with artificial intelligence.',
+        welcomeIntro2: 'My words are an invitation to reflection, not absolute truth.',
+        welcomePrivacy: 'Conversations are stored anonymously to experimental purposes. 3 questions every 24 hours.',
+        langPrompt: 'First, choose your language:',
+        deityTitle: 'choose a deity',
+        deityIntro: 'Which deity would you like to talk with?',
+        labels: {
+          jewish: 'Judaism',
+          christian: 'Christianity',
+          buddhist: 'Buddhism',
+          olympus: 'Greek Pantheon',
+          future_self: 'Your Future Self'
+        },
+        subs: {
+          jewish: 'H'shem · Torah, Talmud, Kabbalah',
+          christian: 'God the Father · Bible, Saints',
+          buddhist: 'Buddha · Dharma, Sutras',
+          olympus: 'Olympus · Myths, tragedies',
+          future_self: 'Yourself, 10 years ahead'
+        },
+        back: '← Back',
+        placeholder: 'Ask your question...',
+        thinking: 'is typing',
+        send: 'send',
+        questionsLeft: (n) => `${n} questions left`,
+        questionLeft: '1 question left',
+        noQuestions: 'no questions today',
+        errorNetwork: '❌ Could not connect. Check your network and try again.',
+        errorGeneric: '❌ Something went wrong. Try again in a moment.',
+        changeDeity: 'change deity',
+        reset: 'reset',
+        ready: 'ready',
+        tgBannerText: '📱 Telegram detected on your device. Do you prefer start a chat conversation wwith your Deity?',
+        tgBannerLink: 'Open in Telegram →',
+        chatStarted: (deity) => `── conversation started with ${deity} ──`
+      }
+    };
+
+    // ==========================================================================
+    // STATE
+    // ==========================================================================
+    let state = {
+      language: null,
+      deity: null,
+      sessionId: generateSessionId(),
+      ipHash: null,
+      questionsToday: 0,
+      lastResetAt: Date.now(),
+      messages: []
+    };
+
+    function generateSessionId() {
+      return 'sess_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    }
+
+    // Simple hash function for IP-equivalent (we don't have real IP from client, use fingerprint)
+    async function getClientFingerprint() {
+      const data = [
+        navigator.userAgent,
+        navigator.language,
+        screen.width + 'x' + screen.height,
+        new Date().getTimezoneOffset(),
+        // Add some entropy that persists in localStorage
+        getOrCreateClientId()
+      ].join('|');
+
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(data);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+    }
+
+    function getOrCreateClientId() {
+      const key = 'godistyping_client_id';
+      let id = localStorage.getItem(key);
+      if (!id) {
+        id = 'c_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+        localStorage.setItem(key, id);
+      }
+      return id;
+    }
+
+    // ==========================================================================
+    // PERSISTENCE
+    // ==========================================================================
+    function saveState() {
+      localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(CONFIG.STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Check if 24h has passed (client-side, server-side rate limit is authoritative)
+          const now = Date.now();
+          const windowMs = CONFIG.WINDOW_HOURS * 60 * 60 * 1000;
+          if (now - parsed.lastResetAt > windowMs) {
+            parsed.questionsToday = 0;
+            parsed.lastResetAt = now;
+          }
+          state = { ...state, ...parsed };
+          // Always regenerate sessionId per page load
+          state.sessionId = generateSessionId();
+        }
+      } catch (e) {
+        console.error('State load failed:', e);
+      }
+    }
+
+    // ==========================================================================
+    // UI HELPERS
+    // ==========================================================================
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('send-btn');
+    const status = document.getElementById('status');
+    const deityIndicator = document.getElementById('deity-indicator');
+    const counter = document.getElementById('counter');
+    const modal = document.getElementById('onboarding-modal');
+
+    function t(key, ...args) {
+      const lang = state.language || 'es';
+      const val = i18n[lang][key];
+      return typeof val === 'function' ? val(...args) : val;
+    }
+
+    function addMessage(text, type = 'bot', citation = '') {
+      const div = document.createElement('div');
+      div.className = `msg msg-${type}`;
+      div.textContent = text;
+
+      if (citation) {
+        const citDiv = document.createElement('div');
+        citDiv.className = 'citation';
+        citDiv.textContent = citation;
+        div.appendChild(citDiv);
+      }
+
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+      return div;
+    }
+
+    function showTyping() {
+      const div = document.createElement('div');
+      div.className = 'msg typing';
+      div.id = 'typing-indicator';
+      div.innerHTML = `god_is_typing<span class="dots">...</span>`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function hideTyping() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    function updateCounter() {
+      const left = Math.max(0, CONFIG.MAX_QUESTIONS - state.questionsToday);
+      if (left === 0) {
+        counter.textContent = t('noQuestions');
+        counter.style.color = 'var(--danger)';
+      } else if (left === 1) {
+        counter.textContent = t('questionLeft');
+        counter.style.color = 'var(--warn)';
+      } else {
+        counter.textContent = t('questionsLeft', left);
+        counter.style.color = 'var(--text-dim)';
+      }
+    }
+
+    function updateDeityIndicator() {
+      if (!state.deity) {
+        deityIndicator.textContent = '—';
+        return;
+      }
+      const icons = { jewish: '✡️', christian: '✝️', buddhist: '☸️', olympus: '🏛️', future_self: '🪞' };
+      deityIndicator.textContent = `${icons[state.deity]} ${t('labels')[state.deity]}`;
+    }
+
+    function applyLanguage(lang) {
+      state.language = lang;
+      document.documentElement.lang = lang;
+
+      // Update all i18n strings
+      document.getElementById('welcome-intro-1').textContent = t('welcomeIntro1');
+      document.getElementById('welcome-intro-2').textContent = t('welcomeIntro2');
+      document.getElementById('welcome-privacy').textContent = t('welcomePrivacy');
+      document.getElementById('lang-prompt').textContent = t('langPrompt');
+      document.getElementById('deity-title').textContent = t('deityTitle');
+      document.getElementById('deity-intro').textContent = t('deityIntro');
+      document.getElementById('btn-back').textContent = t('back');
+
+      for (const deity of ['jewish', 'christian', 'buddhist', 'olympus', 'future']) {
+        const labelId = deity === 'future' ? 'future_self' : deity;
+        const elLbl = document.getElementById('lbl-' + deity);
+        const elSub = document.getElementById('sub-' + deity);
+        if (elLbl) elLbl.textContent = t('labels')[labelId];
+        if (elSub) elSub.textContent = t('subs')[labelId];
+      }
+
+      input.placeholder = t('placeholder');
+      sendBtn.textContent = t('send');
+      status.textContent = '— ' + t('ready') + ' —';
+      updateCounter();
+
+      // Telegram banner
+      const tgText = document.getElementById('tg-banner-text');
+      const tgLink = document.getElementById('tg-banner-link');
+      if (tgText) tgText.textContent = t('tgBannerText');
+      if (tgLink) tgLink.textContent = t('tgBannerLink');
+    }
+
+    // ==========================================================================
+    // FLOW: ONBOARDING
+    // ==========================================================================
+    function showStepLanguage() {
+      document.getElementById('step-disclaimer').style.display = 'block';
+      document.getElementById('step-deity').style.display = 'none';
+    }
+
+    function showStepDeity() {
+      document.getElementById('step-disclaimer').style.display = 'none';
+      document.getElementById('step-deity').style.display = 'block';
+    }
+
+    function goBackToLang() {
+      showStepLanguage();
+    }
+
+    document.querySelectorAll('#lang-picker .picker-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        applyLanguage(lang);
+        showStepDeity();
+      });
+    });
+
+    document.querySelectorAll('.deity-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.deity = btn.dataset.deity;
+        updateDeityIndicator();
+        saveState();
+        closeModal();
+        startChat();
+      });
+    });
+
+    function closeModal() {
+      modal.style.display = 'none';
+      input.disabled = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+
+    function openModal() {
+      modal.style.display = 'flex';
+      input.disabled = true;
+      sendBtn.disabled = true;
+    }
+
+    function startChat() {
+      const labels = i18n[state.language].labels;
+      addMessage(t('chatStarted', labels[state.deity]), 'system');
+    }
+
+    function changeDeity() {
+      showStepDeity();
+      openModal();
+    }
+
+    function resetSession() {
+      const lang = state.language;
+      localStorage.removeItem(CONFIG.STORAGE_KEY);
+      // Keep client ID so rate limit persists
+      state = {
+        language: lang,
+        deity: null,
+        sessionId: generateSessionId(),
+        ipHash: state.ipHash,
+        questionsToday: state.questionsToday,
+        lastResetAt: state.lastResetAt,
+        messages: []
+      };
+      chat.innerHTML = '';
+      updateDeityIndicator();
+      updateCounter();
+      showStepDeity();
+      openModal();
+    }
+
+    // ==========================================================================
+    // FLOW: SEND MESSAGE
+    // ==========================================================================
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+      if (!state.deity || !state.language) {
+        openModal();
+        return;
+      }
+
+      input.value = '';
+      sendBtn.disabled = true;
+      input.disabled = true;
+
+      addMessage(text, 'user');
+      showTyping();
+
+      try {
+        const response = await fetch(CONFIG.WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            language: state.language,
+            deity: state.deity,
+            sessionId: state.sessionId,
+            ipHash: state.ipHash
+          })
+        });
+
+        hideTyping();
+
+        if (!response.ok) {
+          addMessage(t('errorGeneric'), 'error');
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.blocked) {
+          addMessage(data.message, 'warning');
+          state.questionsToday = CONFIG.MAX_QUESTIONS;
+          updateCounter();
+          return;
+        }
+
+        // Success path
+        addMessage(data.response, 'bot', data.citation);
+
+        // Update local counter
+        state.questionsToday += 1;
+        if (state.questionsToday === 1) {
+          state.lastResetAt = Date.now();
+        }
+        updateCounter();
+        saveState();
+
+      } catch (e) {
+        hideTyping();
+        console.error('Send failed:', e);
+        addMessage(t('errorNetwork'), 'error');
+      } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // ==========================================================================
+    // TELEGRAM DETECTION
+    // ==========================================================================
+    function detectTelegram() {
+      // Best-effort heuristic - browser can't directly check installed apps
+      // Use UA and capability hints
+      const ua = navigator.userAgent.toLowerCase();
+      const isMobile = /android|iphone|ipad/i.test(ua);
+      const hasTelegramHint = (
+        document.referrer.includes('t.me') ||
+        ua.includes('telegram')
+      );
+
+      // Show banner only on mobile (where Telegram app is more likely)
+      if (isMobile) {
+        document.getElementById('tg-banner').style.display = 'flex';
+      }
+    }
+
+    // ==========================================================================
+    // INIT
+    // ==========================================================================
+    async function init() {
+      loadState();
+      state.ipHash = await getClientFingerprint();
+      saveState();
+
+      detectTelegram();
+
+      if (state.language && state.deity) {
+        // User has visited before, skip onboarding
+        applyLanguage(state.language);
+        updateDeityIndicator();
+        closeModal();
+        startChat();
+      } else if (state.language) {
+        applyLanguage(state.language);
+        showStepDeity();
+        openModal();
+      } else {
+        // First time
+        openModal();
+        showStepLanguage();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
