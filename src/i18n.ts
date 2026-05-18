@@ -1,0 +1,171 @@
+export type Lang = 'es' | 'en';
+
+export type Deity = 'jewish' | 'christian' | 'buddhist' | 'olympus' | 'future_self';
+
+export const DEITIES: Deity[] = ['jewish', 'christian', 'buddhist', 'olympus', 'future_self'];
+
+export type I18n = {
+  siteName: string;
+  tagline: string;
+  landingSub: string;
+  ctaReceive: string;
+  ctaTelegram: string;
+  ctaBrowse: string;
+  footerLimit: string;
+  footerDisclaimer: string;
+  howItWorksTitle: string;
+  howItWorks1: string;
+  howItWorks2: string;
+  howItWorks3: string;
+  welcomeIntro1: string;
+  welcomeIntro2: string;
+  askTitle: string;
+  askSubtitle: string;
+  choosePath: string;
+  yourQuestion: string;
+  sendQuestion: string;
+  backHome: string;
+  browseTitle: string;
+  browseSoon: string;
+  revealWaiting: string;
+  revealTyping: string;
+  yourQuestionLabel: string;
+  anotherQuestion: string;
+  changePath: string;
+  questionsLeft: (n: number) => string;
+  questionLeft: string;
+  noQuestions: string;
+  errorNetwork: string;
+  errorGeneric: string;
+  errorWebhookInactive: string;
+  errorNoWebhook: string;
+  errorMissingSetup: string;
+  labels: Record<Deity, string>;
+  subs: Record<Deity, string>;
+};
+
+export const i18n: Record<Lang, I18n> = {
+  es: {
+    siteName: 'god is typing',
+    tagline: 'Una pregunta. Una respuesta. Cinco caminos.',
+    landingSub: 'Sabiduría contemplativa — como una carta que llega cuando menos la esperás.',
+    ctaReceive: 'Recibir una respuesta',
+    ctaTelegram: 'Continuar en Telegram',
+    ctaBrowse: 'Explorar reflexiones',
+    footerLimit: '3 preguntas cada 24 horas · anónimo',
+    footerDisclaimer: 'Palabras de IA, invitación a reflexionar — no verdad absoluta.',
+    howItWorksTitle: 'Cómo funciona',
+    howItWorks1: 'Elegís un camino (tradición) y escribís una pregunta breve.',
+    howItWorks2: 'Un solo webhook orquesta estado, límites y el modelo.',
+    howItWorks3: 'La respuesta llega como una carta, a veces con cita de textos sagrados.',
+    welcomeIntro1: 'Representación contemplativa generada con inteligencia artificial.',
+    welcomeIntro2: 'Una invitación a la reflexión, no un oráculo infalible.',
+    askTitle: 'Tu pregunta',
+    askSubtitle: '¿Qué quieres preguntar?',
+    choosePath: 'Elige un camino',
+    yourQuestion: 'Escribe con calma…',
+    sendQuestion: 'Enviar al umbral',
+    backHome: 'Inicio',
+    browseTitle: 'Reflexiones',
+    browseSoon: 'Pronto podrás explorar fragmentos anónimos. Por ahora, haz tu propia pregunta.',
+    revealWaiting: 'Alguien está escribiendo…',
+    revealTyping: 'god is typing',
+    yourQuestionLabel: 'Tu pregunta',
+    anotherQuestion: 'Otra pregunta',
+    changePath: 'Cambiar camino',
+    questionsLeft: (n) => `${n} preguntas restantes hoy`,
+    questionLeft: '1 pregunta restante hoy',
+    noQuestions: 'Sin preguntas disponibles hoy',
+    errorNetwork: 'No pude conectar. Revisa tu red e intenta de nuevo.',
+    errorGeneric: 'Algo salió mal. Intenta más tarde.',
+    errorWebhookInactive:
+      'El webhook de n8n no está activo. Importá el workflow, activalo en n8n y usá la URL de producción en .env.',
+    errorNoWebhook: 'Falta configurar el webhook (VITE_N8N_WEBHOOK_URL).',
+    errorMissingSetup: 'Elige idioma y camino antes de continuar.',
+    labels: {
+      jewish: 'Judaísmo',
+      christian: 'Cristianismo',
+      buddhist: 'Budismo',
+      olympus: 'Panteón',
+      future_self: 'Tu yo futuro',
+    },
+    subs: {
+      jewish: 'Torá · Talmud',
+      christian: 'Biblia · Santos',
+      buddhist: 'Dharma · Sutras',
+      olympus: 'Mitos · tragedia',
+      future_self: 'Diez años adelante',
+    },
+  },
+  en: {
+    siteName: 'god is typing',
+    tagline: 'One question. One answer. Five paths.',
+    landingSub: 'Contemplative wisdom — like a letter that arrives when you need it.',
+    ctaReceive: 'Receive an answer',
+    ctaTelegram: 'Continue on Telegram',
+    ctaBrowse: 'Browse reflections',
+    footerLimit: '3 questions per 24 hours · anonymous',
+    footerDisclaimer: 'AI words, an invitation to reflect — not absolute truth.',
+    howItWorksTitle: 'How it works',
+    howItWorks1: 'Choose a path (tradition) and write a short question.',
+    howItWorks2: 'One webhook handles state, limits, and the model.',
+    howItWorks3: 'The answer arrives as a letter, sometimes with a sacred citation.',
+    welcomeIntro1: 'A contemplative representation powered by artificial intelligence.',
+    welcomeIntro2: 'An invitation to reflect, not an infallible oracle.',
+    askTitle: 'Your question',
+    askSubtitle: 'What do you want to ask?',
+    choosePath: 'Choose a path',
+    yourQuestion: 'Write with care…',
+    sendQuestion: 'Send across the threshold',
+    backHome: 'Home',
+    browseTitle: 'Reflections',
+    browseSoon: 'Soon you will browse anonymous fragments. For now, ask your own question.',
+    revealWaiting: 'Someone is writing…',
+    revealTyping: 'god is typing',
+    yourQuestionLabel: 'Your question',
+    anotherQuestion: 'Another question',
+    changePath: 'Change path',
+    questionsLeft: (n) => `${n} questions left today`,
+    questionLeft: '1 question left today',
+    noQuestions: 'No questions left today',
+    errorNetwork: 'Could not connect. Check your network and try again.',
+    errorGeneric: 'Something went wrong. Try again later.',
+    errorWebhookInactive:
+      'The n8n webhook is not active. Import the workflow, activate it in n8n, and set the production URL in .env.',
+    errorNoWebhook: 'Webhook not configured (VITE_N8N_WEBHOOK_URL).',
+    errorMissingSetup: 'Choose language and path before continuing.',
+    labels: {
+      jewish: 'Judaism',
+      christian: 'Christianity',
+      buddhist: 'Buddhism',
+      olympus: 'Pantheon',
+      future_self: 'Future self',
+    },
+    subs: {
+      jewish: 'Torah · Talmud',
+      christian: 'Bible · Saints',
+      buddhist: 'Dharma · Sutras',
+      olympus: 'Myth · tragedy',
+      future_self: 'Ten years ahead',
+    },
+  },
+};
+
+type TI18nStringKey = Exclude<keyof I18n, 'labels' | 'subs'>;
+
+export function t(lang: Lang | null, key: TI18nStringKey, ...args: unknown[]): string {
+  const l = lang ?? 'es';
+  const val = i18n[l][key];
+  if (typeof val === 'function') {
+    return (val as (...a: unknown[]) => string)(...args);
+  }
+  return val;
+}
+
+export const DEITY_ICON: Record<Deity, string> = {
+  jewish: '✡',
+  christian: '✝',
+  buddhist: '☸',
+  olympus: '◆',
+  future_self: '◇',
+};

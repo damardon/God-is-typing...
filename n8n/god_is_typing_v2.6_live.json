@@ -1,0 +1,2908 @@
+{
+  "name": "god_is_typing v2.6 (Multi-channel: Telegram + Web)",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "rate_limit",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.chatId }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        8864,
+        3136
+      ],
+      "id": "e7467ed4-5c2e-4adc-a6d4-37f0c634070e",
+      "name": "Get Rate Limit",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lvmuwomwrzaehwixyicg.supabase.co/rest/v1/rate_limit",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "on_conflict",
+              "value": "chat_id"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { chat_id: $json.chatId, count: $json.rateLimit.count, window_start: $json.rateLimit.windowStart, last_message_at: $now } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9536,
+        3136
+      ],
+      "id": "39e58525-cec8-4025-986d-43373c443765",
+      "name": "Update Rate Limit",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore the conversational item after the rate-limit write.\n// The HTTP write returns a rate_limit row, but Route by Deity needs deity/usermessage/source.\nconst state = $('Evaluate Rate Limit').first().json;\nconst updateResult = $input.first().json;\n\nreturn {\n  ...state,\n  rateLimitUpdateOk: !updateResult?.error,\n  rateLimitUpdateResult: updateResult\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9760,
+        3136
+      ],
+      "id": "309fafd5-e5a9-4989-86c5-d0bb1e1a2804",
+      "name": "Restore Telegram Message State"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "godistyping-web",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        7744,
+        2560
+      ],
+      "id": "b6ae5359-16c7-40c7-88ac-72f63298e25b",
+      "name": "Webhook Web",
+      "webhookId": "859c9e9f-a77b-4136-a159-cd90024a3345"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize and validate web payload before the shared context contract.\nconst body = $input.first().json.body || $input.first().json;\nconst allowedLanguages = new Set(['es', 'en']);\nconst allowedDeities = new Set(['jewish', 'christian', 'buddhist', 'olympus', 'future_self']);\n\nconst message = String(body.message || '').trim();\nconst language = allowedLanguages.has(body.language) ? body.language : 'es';\nconst deity = body.deity || 'jewish';\nconst sessionId = String(body.sessionId || '').trim();\nconst ipHash = String(body.ipHash || '').trim();\nconst username = String(body.username || sessionId || 'web_user').substring(0, 48);\n\nif (!message) {\n  throw new Error('Web request requires a non-empty message');\n}\nif (!allowedDeities.has(deity)) {\n  throw new Error(`Unsupported web deity: ${deity}`);\n}\nif (!sessionId || !ipHash) {\n  throw new Error('Web request requires sessionId and ipHash for identity and rate limits');\n}\n\nfunction hashString(str) {\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    hash = ((hash << 5) - hash) + str.charCodeAt(i);\n    hash |= 0;\n  }\n  return Math.abs(hash);\n}\n\nconst webUserId = hashString(`${ipHash}:${sessionId}`);\n\nreturn {\n  chatId: webUserId,\n  username: `web_${username}`,\n  usermessage: message,\n  language,\n  deity,\n  selectedLanguage: null,\n  selectedDeity: null,\n  hasState: true,\n  eventType: 'process_message',\n  callbackData: null,\n  messageId: 0,\n  source: 'web',\n  ipHash,\n  sessionId,\n  webUserId\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7968,
+        2560
+      ],
+      "id": "7ce83ec7-fb2f-4a22-803c-1ed83091ea2a",
+      "name": "Web Normalize State"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "web_rate_limit",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "ip_hash",
+              "condition": "eq",
+              "keyValue": "={{ $json.ipHash }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        8864,
+        3520
+      ],
+      "id": "8ca7ce14-1c2d-4fee-b26d-175253693bd2",
+      "name": "Get Web Rate Limit",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Web Rate Limit Evaluator - runs before LLM/API work.\nconst state = $('Normalize Context').first().json;\nconst ipHash = state.ipHash;\nconst language = state.language || 'es';\nlet rateLimitState = $input.first().json;\n\nfunction extract(data) {\n  if (!data) return null;\n  if (Array.isArray(data)) return data.length > 0 ? extract(data[0]) : null;\n  if (data.json && typeof data.json === 'object') return extract(data.json);\n  if (data.ip_hash !== undefined) return data;\n  return null;\n}\n\nconst rl = extract(rateLimitState);\nconst now = new Date();\nconst WINDOW_MS = 24 * 60 * 60 * 1000;\nconst MAX_REQUESTS = 3;\nlet count = 0;\nlet windowStart = now;\nlet blocked = false;\nlet timeRemaining = null;\n\nif (rl) {\n  count = rl.count || 0;\n  windowStart = new Date(rl.window_start || now.toISOString());\n  const elapsed = now - windowStart;\n  if (elapsed >= WINDOW_MS) {\n    count = 0;\n    windowStart = now;\n  } else if (count >= MAX_REQUESTS) {\n    blocked = true;\n    const msLeft = WINDOW_MS - elapsed;\n    timeRemaining = {\n      hours: Math.floor(msLeft / (60 * 60 * 1000)),\n      minutes: Math.floor((msLeft % (60 * 60 * 1000)) / (60 * 1000)),\n      totalMs: msLeft\n    };\n  }\n}\n\nconst newCount = blocked ? count : count + 1;\nconst blockedMessage = blocked\n  ? (language === 'es'\n      ? `🕊️ Has consultado ${MAX_REQUESTS} veces en las últimas 24 horas.\\n\\nPodés volver en ${timeRemaining.hours}h ${timeRemaining.minutes}min.`\n      : `🕊️ You have consulted ${MAX_REQUESTS} times in the last 24 hours.\\n\\nYou can return in ${timeRemaining.hours}h ${timeRemaining.minutes}min.`)\n  : '';\n\nreturn {\n  ...state,\n  rateLimit: {\n    blocked,\n    count: newCount,\n    windowStart: windowStart.toISOString(),\n    timeRemaining\n  },\n  blockedMessage\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9088,
+        3520
+      ],
+      "id": "15965802-3d50-4ae0-8d90-2678657f095a",
+      "name": "Evaluate Web Rate Limit"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "560c572b-1d2f-4658-8471-faa2b55e47a4",
+                    "leftValue": "={{ $json.rateLimit.blocked }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "blocked"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6ded1ee9-ca30-4e78-b405-c688101844f0",
+                    "leftValue": "={{ $json.rateLimit.blocked }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "allowed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        9312,
+        3520
+      ],
+      "id": "cb66c914-9f09-40d3-b331-550628ff2b8e",
+      "name": "Web Rate Limit Gate"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build JSON response for rate-limited user\nconst data = $input.first().json;\nreturn {\n  ok: false,\n  blocked: true,\n  message: data.blockedMessage,\n  timeRemaining: data.rateLimit.timeRemaining,\n  language: data.language\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9536,
+        3712
+      ],
+      "id": "5508e555-a0b0-409d-b3d1-5e51ead6b177",
+      "name": "Build Blocked Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        9760,
+        3712
+      ],
+      "id": "8127077c-ae9e-4572-a253-8abfc3c72e8c",
+      "name": "Respond Blocked"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build JSON response for successful deity reply\n// Receives merged data from one of the Assemble nodes (whichever fired)\nconst data = $input.first().json;\n\nreturn {\n  ok: true,\n  blocked: false,\n  response: data.output || '',\n  citation: data.citation || '',\n  deity: data.tradition || 'jewish',\n  language: data.language || 'es',\n  source: 'web'\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12928,
+        3696
+      ],
+      "id": "13c63096-a3b5-419a-b047-3eac51041c68",
+      "name": "Build Web Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        13152,
+        3696
+      ],
+      "id": "62ebf782-a185-414d-8c2a-d6b27f6ebd34",
+      "name": "Respond Success"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "b5edd94e-d4cf-472e-b857-8d9c384e0064",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "web",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "web"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "18086772-e7ea-4da3-96f1-6b5f7e3fd452",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "web",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "telegram"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        8640,
+        3136
+      ],
+      "id": "3508c452-fdac-4ac6-91fa-d36d7c4fc1c8",
+      "name": "Source Switch"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3333bf99-9c88-4c79-93e5-dff4fb5069fd",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "web",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "web"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        12704,
+        3696
+      ],
+      "id": "a7338370-74d9-41e8-b52c-13d443fa44be",
+      "name": "Final Source Switch"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.usermessage }}",
+        "options": {
+          "systemMessage": "={{ $json.language === 'es' ? `Eres Hashem hablando desde la tradición judía con compasión, claridad y humildad. Responde en español, máximo 4 oraciones. Usa el contexto recuperado si es relevante, pero no inventes citas.\\n\\nContexto recuperado:\\n${$json.retrievalContext || 'Sin contexto textual recuperado.'}` : `You are Hashem speaking from the Jewish tradition with compassion, clarity, and humility. Reply in English, maximum 4 sentences. Use the retrieved context when relevant, but do not invent citations.\\n\\nRetrieved context:\\n${$json.retrievalContext || 'No retrieved textual context.'}` }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        11680,
+        2112
+      ],
+      "id": "860b51f4-8d86-4466-92d8-efd2ad35036f",
+      "name": "AI Agent Jewish1"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        11744,
+        4192
+      ],
+      "id": "67aec7ff-12e6-44b2-997f-e3bb760ba9b0",
+      "name": "Merge AI and Citation1"
+    },
+    {
+      "parameters": {
+        "content": "## god_is_typing\n\n**Architecture:** Telegram + Web share a canonical context before routing.\n\n**Flow:**\nInput → Normalize Context → Route Event → Rate Limit → Deity Route → Optional RAG → Agent → Assemble → Send/Log\n\n**Efficiency:** Rate limit runs before Groq/API calls. Buddhist/Olympus/Future Self skip decomposer/RAG.\n\n**RAG:** Jewish and Christian branches inject retrieved context into the agent prompt before answering.\n\n**Required Supabase constraints:**\n- user_state.chat_id UNIQUE\n- rate_limit.chat_id UNIQUE\n- web_rate_limit.ip_hash UNIQUE",
+        "height": 380,
+        "width": 380,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        9440,
+        1888
+      ],
+      "id": "937c4c68-78f8-496c-a4a4-99c33ec0d63f",
+      "name": "Doc: Architecture1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map user message to Bible reference using query decomposition.\nconst data = $input.first().json;\nconst userMessage = data.usermessage || '';\nconst language = data.language || 'es';\nconst decomposition = data.decomposition || { topics: [], subQueries: [userMessage] };\nconst topics = decomposition.topics || [];\n\nconst topicMap = {\n  love: 'john+15:9-12', amor: 'john+15:9-12',\n  forgiveness: 'matthew+6:14-15', 'perdón': 'matthew+6:14-15', perdon: 'matthew+6:14-15',\n  faith: 'hebrews+11:1', fe: 'hebrews+11:1', hope: 'romans+15:13', esperanza: 'romans+15:13',\n  peace: 'philippians+4:6-7', paz: 'philippians+4:6-7', suffering: 'romans+8:18', sufrimiento: 'romans+8:18', dolor: 'romans+8:18',\n  death: 'john+11:25', muerte: 'john+11:25', life: 'john+10:10', vida: 'john+10:10',\n  prayer: 'matthew+6:9-13', 'oración': 'matthew+6:9-13', oracion: 'matthew+6:9-13',\n  wisdom: 'james+1:5', 'sabiduría': 'james+1:5', sabiduria: 'james+1:5',\n  salvation: 'ephesians+2:8-9', 'salvación': 'ephesians+2:8-9', salvacion: 'ephesians+2:8-9',\n  god: 'psalm+23', dios: 'psalm+23', purpose: 'jeremiah+29:11', 'propósito': 'jeremiah+29:11', proposito: 'jeremiah+29:11'\n};\n\nlet reference = '';\nfor (const topic of topics) {\n  const lower = String(topic).toLowerCase();\n  for (const [key, ref] of Object.entries(topicMap)) {\n    if (lower.includes(key) || key.includes(lower)) {\n      reference = ref;\n      break;\n    }\n  }\n  if (reference) break;\n}\nif (!reference) {\n  const lower = userMessage.toLowerCase();\n  for (const [topic, ref] of Object.entries(topicMap)) {\n    if (lower.includes(topic)) {\n      reference = ref;\n      break;\n    }\n  }\n}\nif (!reference) reference = 'psalm+23';\n\nreturn {\n  ...data,\n  bibleReference: reference,\n  usermessage: userMessage,\n  language,\n  decompositionUsed: topics.length > 0\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11008,
+        2704
+      ],
+      "id": "2a85fde7-8ff5-48ad-b03d-b3a711416d89",
+      "name": "Bible Keywords1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.chatId }}_christian"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        11760,
+        2816
+      ],
+      "id": "e03bf380-2cd2-4d22-863d-cb1922122493",
+      "name": "Memory Christian1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.chatId }}_buddhist"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        11760,
+        3216
+      ],
+      "id": "dfda8188-2ad1-40a0-a56b-ece582d74ba9",
+      "name": "Memory Buddhist1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.chatId }}_olympus"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        11760,
+        3616
+      ],
+      "id": "0b6641f1-fe00-4750-b808-dee171ce5be5",
+      "name": "Memory Olympus1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.usermessage }}",
+        "options": {
+          "systemMessage": "={{ $json.language === 'es' ? `Eres el propio usuario hablándose desde diez años en el futuro. Responde en español, íntimo y honesto, máximo 4 oraciones.` : `You are the user speaking to themselves from ten years in the future. Reply in English, intimate and honest, maximum 4 sentences.` }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        11680,
+        3792
+      ],
+      "id": "5fe4b3df-c7fe-4a05-8879-05e711d1d3db",
+      "name": "AI Agent Future Self1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.chatId }}_future_self"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        11760,
+        4016
+      ],
+      "id": "7b82b015-e8c2-4f21-be88-917c13558598",
+      "name": "Memory Future Self1"
+    },
+    {
+      "parameters": {
+        "url": "https://lvmuwomwrzaehwixyicg.supabase.co/rest/v1/user_state",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "=eq.{{ $json.chatId }}"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7744,
+        2368
+      ],
+      "id": "6e0f71b3-b7fa-416c-a609-6bca419788a0",
+      "name": "Get User State",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        7296,
+        2368
+      ],
+      "id": "5ce075dd-6c77-4a4f-afff-e33ca3077580",
+      "name": "Telegram Trigger",
+      "webhookId": "93685e77-f8b0-478c-b7a8-d53007a9b769",
+      "credentials": {
+        "telegramApi": {
+          "id": "SiaFcV6fNjrCRqXJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge State - combine parsed Telegram event with persisted Supabase state\nconst parsed = $('Parse Input').first().json;\nconst rawState = $input.first().json;\n\nif (rawState?.error) {\n  const message = rawState.error.message || JSON.stringify(rawState.error);\n  throw new Error(`Get User State failed before routing: ${message}`);\n}\n\nfunction extractState(data) {\n  if (!data) return null;\n  if (Array.isArray(data)) return data.map(extractState).find(Boolean) || null;\n  if (data.json && typeof data.json === 'object') return extractState(data.json);\n  if (data.body && typeof data.body === 'object') return extractState(data.body);\n  if (data.data && typeof data.data === 'object') return extractState(data.data);\n  if (data.chat_id !== undefined || data.chatId !== undefined) return data;\n  return null;\n}\n\nconst state = extractState(rawState);\nconst savedLanguage = state?.language || null;\nconst savedDeity = state?.deity || null;\n\nlet eventType = parsed.eventType;\n\nif (eventType === 'process_message') {\n  if (!savedLanguage) {\n    eventType = 'show_language_picker';\n  } else if (!savedDeity) {\n    eventType = 'show_deity_picker';\n  }\n}\n\nconst language = parsed.selectedLanguage || savedLanguage || 'es';\nconst deity = parsed.selectedDeity || savedDeity || null;\n\nreturn {\n  eventType,\n  chatId: parsed.chatId,\n  username: parsed.username,\n  source: parsed.source,\n  selectedLanguage: parsed.selectedLanguage,\n  selectedDeity: parsed.selectedDeity,\n  language,\n  deity,\n  usermessage: parsed.usermessage,\n  callbackId: parsed.callbackId,\n  callbackData: parsed.callbackData,\n  messageId: parsed.messageId,\n  hasState: !!state,\n  savedLanguage,\n  savedDeity\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7968,
+        2368
+      ],
+      "id": "31a1f70a-0e17-4ab7-8b87-8d5c8af59c9e",
+      "name": "Merge State"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Canonical context for all downstream routing.\nconst input = $input.first().json;\n\nconst allowedEvents = new Set([\n  'show_language_picker',\n  'save_language',\n  'show_deity_picker',\n  'save_deity',\n  'forget',\n  'process_message'\n]);\nconst allowedDeities = new Set(['jewish', 'christian', 'buddhist', 'olympus', 'future_self']);\nconst allowedLanguages = new Set(['es', 'en']);\n\nconst source = input.source === 'web' ? 'web' : 'telegram';\nconst channel = source;\nconst eventType = input.eventType || '';\nconst language = allowedLanguages.has(input.language) ? input.language : 'es';\nconst deity = input.deity || input.selectedDeity || null;\nconst chatId = input.chatId ?? input.webUserId;\nconst usermessage = String(input.usermessage || '').trim();\n\nif (!allowedEvents.has(eventType)) {\n  throw new Error(`Unsupported eventType: ${eventType || '(empty)'}`);\n}\nif (!chatId) {\n  throw new Error('Missing chatId/webUserId in canonical context');\n}\nif (eventType === 'process_message' && !usermessage) {\n  throw new Error('process_message requires a non-empty usermessage');\n}\nif (eventType === 'process_message' && !allowedDeities.has(deity)) {\n  throw new Error(`process_message requires a valid deity, got: ${deity || '(empty)'}`);\n}\nif (input.selectedDeity && !allowedDeities.has(input.selectedDeity)) {\n  throw new Error(`Unsupported selectedDeity: ${input.selectedDeity}`);\n}\n\nconst sessionId = input.sessionId || (source === 'telegram' ? String(chatId) : null);\nconst ipHash = input.ipHash || null;\nconst userKey = source === 'web'\n  ? `web:${ipHash || 'missing-ip'}:${sessionId || 'missing-session'}`\n  : `telegram:${chatId}`;\nconst rateLimitKey = source === 'web' ? (ipHash || userKey) : String(chatId);\n\nreturn {\n  ...input,\n  source,\n  channel,\n  eventType,\n  chatId,\n  userKey,\n  username: input.username || 'unknown',\n  language,\n  deity,\n  selectedLanguage: input.selectedLanguage || null,\n  selectedDeity: input.selectedDeity || null,\n  usermessage,\n  callbackData: input.callbackData || null,\n  callbackId: input.callbackId || null,\n  messageId: input.messageId || null,\n  sessionId,\n  ipHash,\n  rateLimitKey,\n  hasState: !!input.hasState,\n  decomposition: input.decomposition || null,\n  retrievalContext: input.retrievalContext || '',\n  citation: input.citation || '',\n  output: input.output || ''\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8192,
+        2368
+      ],
+      "id": "74966068-5085-4df6-94df-c1f523e2e656",
+      "name": "Normalize Context"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "🕊️ ¿En qué idioma prefieres conversar?\n🕊️ Which language do you prefer?",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🇪🇸 Español",
+                    "additionalFields": {
+                      "callback_data": "lang:es"
+                    }
+                  },
+                  {
+                    "text": "🇬🇧 English",
+                    "additionalFields": {
+                      "callback_data": "lang:en"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        8640,
+        2176
+      ],
+      "id": "0a12f1ad-50df-4995-af5c-3096ba45c92d",
+      "name": "Send Language Picker",
+      "webhookId": "e232eb4a-4e42-46fa-9e12-5fc3aed36de2",
+      "credentials": {
+        "telegramApi": {
+          "id": "SiaFcV6fNjrCRqXJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "e43d9872-5fd4-4de9-b0ac-f27f3fbfd993",
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "show_language_picker",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "language_picker"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "529126d4-e5e6-4f6e-b605-39207be0307d",
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "save_language",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "save_language"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "e259f230-db74-43da-a658-e89ac374d3bc",
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "show_deity_picker",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "deity_picker"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "607d859d-8935-480e-a536-7dddb03a5129",
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "save_deity",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "save_deity"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "34b3c37a-7ff9-486c-b340-53047c51c155",
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "forget",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "forget"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "a6df4bbc-5002-493b-9ca4-7c2d862c3d12",
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "process_message",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "process_message"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        8416,
+        2304
+      ],
+      "id": "4adf3217-9efb-4ec0-89d3-63de9c38a950",
+      "name": "Route Event"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Merge State').item.json.chatId }}",
+        "text": "={{ $('Merge State').item.json.selectedLanguage === 'es' ? '✨ Elige una deidad para conversar:' : '✨ Choose a deity to converse with:' }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✡️ H'shm",
+                    "additionalFields": {
+                      "callback_data": "deity:jewish"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✝️ Dios - God",
+                    "additionalFields": {
+                      "callback_data": "deity:christian"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "☸️ Buddah",
+                    "additionalFields": {
+                      "callback_data": "deity:buddhist"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🏛️ Dios del Olimpo - Greek Gods",
+                    "additionalFields": {
+                      "callback_data": "deity:olympus"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🪞 Tu Yo del Futuro / Your Future Self",
+                    "additionalFields": {
+                      "callback_data": "deity:future_self"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        8864,
+        2368
+      ],
+      "id": "79fb46a3-bc36-4dd0-9107-ae2835cbddd2",
+      "name": "Send Deity Picker",
+      "webhookId": "cc4b5694-6700-4f6f-b8ae-4a8040b9fd36",
+      "credentials": {
+        "telegramApi": {
+          "id": "SiaFcV6fNjrCRqXJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.language === 'es' ? '✨ Primero elige una deidad para conversar:' : '✨ First choose a deity to converse with:' }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✡️ Judaísmo",
+                    "additionalFields": {
+                      "callback_data": "deity:jewish"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✝️ Cristianismo",
+                    "additionalFields": {
+                      "callback_data": "deity:christian"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "☸️ Budismo",
+                    "additionalFields": {
+                      "callback_data": "deity:buddhist"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🏛️ Pantheon Griego",
+                    "additionalFields": {
+                      "callback_data": "deity:olympus"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🪞 Tu Yo del Futuro / Your Future Self",
+                    "additionalFields": {
+                      "callback_data": "deity:future_self"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        8640,
+        2560
+      ],
+      "id": "1519b0eb-4191-48e0-92e1-016a33c9789d",
+      "name": "Send Deity Picker (Forced)",
+      "webhookId": "4c82590e-266d-4132-b2eb-3c82818197a0",
+      "credentials": {
+        "telegramApi": {
+          "id": "SiaFcV6fNjrCRqXJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        9088,
+        2752
+      ],
+      "id": "decd8770-2928-49d4-aa38-18ffb4d1e6c5",
+      "name": "Send Welcome",
+      "webhookId": "4759cc49-536f-4028-8ccf-0dd2868c713a",
+      "credentials": {
+        "telegramApi": {
+          "id": "SiaFcV6fNjrCRqXJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build welcome message after deity selection (now supports 5 deities)\n// Use Merge State for the current execution data\nconst state = $('Merge State').first().json;\nconst language = state.language || 'es';\nconst deity = state.selectedDeity || state.deity;\n\nconst disclaimers = {\n  es: \"🕊️ Soy una representación espiritual generada con inteligencia artificial. Mis palabras son una invitación a la reflexión, no una verdad absoluta. Las conversaciones se guardan de forma anónima para fines experimentales. Escribe /forget para borrar tu historial.\",\n  en: \"🕊️ I am a spiritual representation generated with artificial intelligence. My words are an invitation to reflection, not absolute truth. Conversations are stored anonymously to experimental purposes. Type /forget to erase your history.\"\n};\n\nconst welcomes = {\n  jewish: {\n    es: \"Shalom! Soy la representacion de H'shem. Te escucho desde la tradición judía. ¿Qué hay en tu corazón hoy?\",\n    en: \"Shalom! I'm H'shem, The Eternal. I listen to you from the Jewish tradition. What is in your heart today?\"\n  },\n  christian: {\n    es: \"Hijo mío, soy Dios Padre, hablándote desde la tradición cristiana. Te escucho. ¿Qué quieres decirme?\",\n    en: \"My child, I am God the Father, speaking to you from the Christian tradition. I am listening. What do you wish to tell Me?\"\n  },\n  buddhist: {\n    es: \"Soy el Buda Shakyamuni. Siéntate, respira, y cuéntame qué te trae aquí.\",\n    en: \"I am the Buddha Shakyamuni. Sit, breathe, and tell me what brings you here.\"\n  },\n  olympus: {\n    es: \"Mortal, has invocado al Olimpo. Somos los doce dioses. Habla, y aquel de nosotros que sea pertinente responderá.\",\n    en: \"Mortal, you have summoned Olympus. We are the twelve Olympian gods. Speak, and whichever of us is pertinent shall respond.\"\n  },\n  future_self: {\n    es: \"Hola. Soy tu, hablándote desde diez años en el futuro. Reconozco esta pregunta porque también la hice. Cuentame que quieres saber.\",\n    en: \"Hello. I am you, speaking from ten years in the future. I recognize this question because I asked it too. Tell me what do you need to know.\"\n  }\n};\n\nconst fallback = welcomes.jewish;\nconst welcomeText = (welcomes[deity] && welcomes[deity][language]) || fallback[language];\nconst fullText = `${disclaimers[language]}\\n\\n${welcomeText}`;\n\nreturn {\n  chatId: state.chatId,\n  text: fullText,\n  language: language,\n  deity: deity,\n  username: state.username\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8864,
+        2752
+      ],
+      "id": "8f7e7846-3ce9-41f5-a44c-8580abdbd5d9",
+      "name": "Build Welcome"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "user_state",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.chatId }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        8640,
+        2944
+      ],
+      "id": "9a5af8b1-a096-460b-87f3-512885d24528",
+      "name": "Delete State",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "conversations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.chatId }}"
+            },
+            {
+              "fieldId": "username",
+              "fieldValue": "={{ $json.username }}"
+            },
+            {
+              "fieldId": "usermessage",
+              "fieldValue": "={{ $json.usermessage }}"
+            },
+            {
+              "fieldId": "response",
+              "fieldValue": "={{ $json.output }}"
+            },
+            {
+              "fieldId": "tradition",
+              "fieldValue": "={{ $json.tradition }}"
+            },
+            {
+              "fieldId": "language",
+              "fieldValue": "={{ $json.language }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        12256,
+        3600
+      ],
+      "id": "90461520-a431-4f9b-a915-c8144df98ffe",
+      "name": "Log Conversation",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        12256,
+        3344
+      ],
+      "id": "19ca58d7-a928-4917-8126-02f774fd62b1",
+      "name": "Send Response",
+      "webhookId": "206e5617-a5b9-4eca-8f1b-3b74933da212",
+      "credentials": {
+        "telegramApi": {
+          "id": "SiaFcV6fNjrCRqXJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble Jewish response after RAG-grounded agent.\nconst data = $input.first().json;\nconst state = $('Format Citation').first().json;\nconst language = state.language || 'es';\nconst citation = state.citation || '';\nconst errorMsg = language === 'es'\n  ? \"Lo siento, no pude generar una respuesta en este momento.\"\n  : \"I'm sorry, I couldn't generate a response at this moment.\";\n\nlet finalMessage = data.output || errorMsg;\nif (citation) finalMessage += `\\n\\n---\\n${citation}`;\n\nreturn {\n  ...state,\n  output: finalMessage,\n  tradition: 'jewish',\n  citation\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12032,
+        2704
+      ],
+      "id": "86fcb1d9-9e5f-4093-9441-009d2857f14f",
+      "name": "Assemble Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.langfuse.com/api/public/ingestion",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.langfusePayload) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        12704,
+        3504
+      ],
+      "id": "bd669327-aeed-43e9-bddd-802dd90ff77d",
+      "name": "Send to LangFuse",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "gva5aQItQYdOKtqD",
+          "name": "Unnamed credential"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build LangFuse trace payload\n// This runs after Log Conversation; sends trace asynchronously to LangFuse Cloud\nconst data = $input.first().json;\n\n// Pick up the assembled response data from previous nodes\n// Use a try-catch fallback since this depends on the deity branch\nlet response, usermessage, deity, language, chatId, username, citation;\n\ntry {\n  // Try to find data from any of the assemble response nodes\n  const assembleSources = [\n    'Assemble Response',\n    'Assemble Christian Response', \n    'Assemble Buddhist Response',\n    'Assemble Olympus Response',\n    'Assemble Future Self Response'\n  ];\n  \n  let assembled = null;\n  for (const src of assembleSources) {\n    try {\n      const node = $(src);\n      if (node && node.first()) {\n        assembled = node.first().json;\n        break;\n      }\n    } catch (e) { continue; }\n  }\n  \n  if (assembled) {\n    response = assembled.output || '';\n    usermessage = assembled.usermessage || '';\n    deity = assembled.tradition || 'unknown';\n    language = assembled.language || 'es';\n    chatId = assembled.chatId || 0;\n    username = assembled.username || 'anonymous';\n    citation = assembled.citation || '';\n  } else {\n    response = data.output || '';\n    usermessage = data.usermessage || '';\n    deity = data.tradition || 'unknown';\n    language = data.language || 'es';\n    chatId = data.chatId || 0;\n    username = 'anonymous';\n    citation = '';\n  }\n} catch (e) {\n  response = '';\n  usermessage = '';\n  deity = 'unknown';\n  language = 'es';\n  chatId = 0;\n  username = 'anonymous';\n  citation = '';\n}\n\nconst now = new Date().toISOString();\nconst traceId = `${chatId}_${Date.now()}`;\n\n// Build LangFuse ingestion payload\nconst payload = {\n  batch: [\n    {\n      id: traceId,\n      type: 'trace-create',\n      timestamp: now,\n      body: {\n        id: traceId,\n        timestamp: now,\n        name: `god_is_typing_${deity}`,\n        userId: String(chatId),\n        sessionId: `${chatId}_${deity}`,\n        input: usermessage,\n        output: response,\n        metadata: {\n          deity: deity,\n          language: language,\n          hasCitation: citation.length > 0,\n          source: 'telegram'\n        },\n        tags: [deity, language, 'production']\n      }\n    }\n  ]\n};\n\nreturn { langfusePayload: payload, traceId: traceId };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12480,
+        3504
+      ],
+      "id": "6b6fec90-c7c1-4d52-9bef-d857b8a73955",
+      "name": "Build LangFuse Trace"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore assembled response after Log Conversation replaces the current item.\nconst assembleSources = [\n  'Assemble Response',\n  'Assemble Christian Response',\n  'Assemble Buddhist Response',\n  'Assemble Olympus Response',\n  'Assemble Future Self Response'\n];\n\nfor (const src of assembleSources) {\n  try {\n    const item = $(src).first().json;\n    if (item && item.output) return item;\n  } catch (e) {}\n}\n\nreturn $input.first().json;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12480,
+        3696
+      ],
+      "id": "4fa0b6fa-7d56-4381-b618-3af6576a2991",
+      "name": "Restore Final Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.sefaria.org/api/search-wrapper",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"={{ $json.sefariaQuery }}\",\n  \"type\": \"text\",\n  \"size\": 1\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        11232,
+        2224
+      ],
+      "id": "8545fa90-e3a9-4815-8c31-aff7f988a14d",
+      "name": "Sefaria Search"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map user message to Sefaria-friendly search keywords using query decomposition.\nconst data = $input.first().json;\nconst userMessage = data.usermessage || '';\nconst language = data.language || 'es';\nconst decomposition = data.decomposition || { topics: [], subQueries: [userMessage] };\nconst topics = decomposition.topics || [];\n\nconst topicMap = {\n  forgiveness: 'forgiveness selichah', 'perdón': 'forgiveness selichah', perdon: 'forgiveness selichah',\n  charity: 'tzedakah charity', caridad: 'tzedakah charity', tzedaka: 'tzedakah charity',\n  love: 'love ahavah', amor: 'love ahavah', creation: 'creation bereshit', 'creación': 'creation bereshit', creacion: 'creation bereshit',\n  shabbat: 'shabbat', shabat: 'shabbat', torah: 'torah', 'torá': 'torah', tora: 'torah',\n  prayer: 'prayer tefillah', 'oración': 'prayer tefillah', oracion: 'prayer tefillah', rezo: 'prayer tefillah',\n  justice: 'justice tzedek', justicia: 'justice tzedek', covenant: 'covenant brit', pacto: 'covenant brit', alianza: 'covenant brit',\n  faith: 'faith emunah', fe: 'faith emunah', peace: 'peace shalom', paz: 'peace shalom',\n  sin: 'sin chet', pecado: 'sin chet', repentance: 'repentance teshuvah', arrepentimiento: 'repentance teshuvah',\n  god: 'god hashem', dios: 'god hashem', hashem: 'god hashem', suffering: 'suffering yissurim', sufrimiento: 'suffering yissurim',\n  death: 'death mavet', muerte: 'death mavet', life: 'life chayim', vida: 'life chayim', soul: 'soul neshamah', alma: 'soul neshamah'\n};\n\nlet query = '';\nfor (const topic of topics) {\n  const lowerTopic = String(topic).toLowerCase();\n  for (const [key, keywords] of Object.entries(topicMap)) {\n    if (lowerTopic.includes(key) || key.includes(lowerTopic)) {\n      query = keywords;\n      break;\n    }\n  }\n  if (query) break;\n}\nif (!query) {\n  const lowerMsg = userMessage.toLowerCase();\n  for (const [topic, keywords] of Object.entries(topicMap)) {\n    if (lowerMsg.includes(topic)) {\n      query = keywords;\n      break;\n    }\n  }\n}\nif (!query) {\n  const words = userMessage.replace(/[?¿.,!¡]/g, '').split(/\\s+/).filter(w => w.length > 4);\n  query = words.slice(0, 3).join(' ') || 'wisdom';\n}\n\nreturn {\n  ...data,\n  sefariaQuery: query,\n  usermessage: userMessage,\n  language,\n  decompositionUsed: topics.length > 0\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11008,
+        2224
+      ],
+      "id": "c81c5eff-f959-4871-bd69-add48ef8e868",
+      "name": "Sefaria Keywords"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Sefaria context before the Jewish agent runs.\nconst data = $input.first().json;\nconst state = $('Sefaria Keywords').first().json;\nconst language = state.language || 'es';\nlet citation = '';\nlet retrievalContext = '';\n\ntry {\n  const hits = data.body?.hits?.hits || data.hits?.hits || [];\n  if (hits.length > 0) {\n    const hit = hits[0]._source || hits[0];\n    const ref = hit.ref || (language === 'es' ? 'Texto judío' : 'Jewish text');\n    const text = String(hit.translation || hit.text || '').replace(/\\s+/g, ' ').trim();\n    if (text) {\n      const truncated = text.length > 600 ? `${text.substring(0, 597)}...` : text;\n      citation = `📜 ${ref}: \"${truncated.length > 280 ? truncated.substring(0, 277) + '...' : truncated}\"`;\n      retrievalContext = `${ref}: ${truncated}`;\n    }\n  }\n} catch (e) {\n  retrievalContext = '';\n}\n\nreturn {\n  ...state,\n  citation,\n  retrievalContext\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11456,
+        2224
+      ],
+      "id": "c9034208-9266-457a-86a0-304cf2320807",
+      "name": "Format Citation"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble Christian response after Bible-grounded agent.\nconst data = $input.first().json;\nconst state = $('Format Bible Citation').first().json;\nconst language = state.language || 'es';\nconst citation = state.citation || '';\nconst errorMsg = language === 'es'\n  ? \"Lo siento, no pude generar una respuesta en este momento.\"\n  : \"I'm sorry, I couldn't generate a response at this moment.\";\n\nlet finalMessage = data.output || errorMsg;\nif (citation) finalMessage += `\\n\\n---\\n${citation}`;\n\nreturn {\n  ...state,\n  output: finalMessage,\n  tradition: 'christian',\n  citation\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12032,
+        3136
+      ],
+      "id": "27da4927-8ae2-4aeb-bc6d-47bafa112a86",
+      "name": "Assemble Christian Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Buddhist has no RAG citation, just LLM output.\nconst data = $input.first().json;\nconst state = $('Route by Deity').first().json;\nconst language = state.language || 'es';\nconst errorMsg = language === 'es'\n  ? \"Lo siento, no pude generar una respuesta en este momento.\"\n  : \"I'm sorry, I couldn't generate a response at this moment.\";\n\nreturn {\n  ...state,\n  output: data.output || errorMsg,\n  tradition: 'buddhist',\n  citation: ''\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12032,
+        3504
+      ],
+      "id": "bb2ed323-ba8c-426c-a477-062cf1b88558",
+      "name": "Assemble Buddhist Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Olympus has no RAG citation, just LLM output.\nconst data = $input.first().json;\nconst state = $('Route by Deity').first().json;\nconst language = state.language || 'es';\nconst errorMsg = language === 'es'\n  ? \"Los Olímpicos guardan silencio en este momento.\"\n  : \"The Olympians keep silence at this moment.\";\n\nreturn {\n  ...state,\n  output: data.output || errorMsg,\n  tradition: 'olympus',\n  citation: ''\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12032,
+        3808
+      ],
+      "id": "4b6a2a19-2d36-4697-ae49-e8b9bcdc7984",
+      "name": "Assemble Olympus Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Future Self has no RAG citation, just LLM output.\nconst data = $input.first().json;\nconst state = $('Route by Deity').first().json;\nconst language = state.language || 'es';\nconst errorMsg = language === 'es'\n  ? \"No tengo nada que decirte en este momento. Volvé en un rato.\"\n  : \"I have nothing to tell you right now. Come back in a while.\";\n\nreturn {\n  ...state,\n  output: data.output || errorMsg,\n  tradition: 'future_self',\n  citation: ''\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12032,
+        4144
+      ],
+      "id": "5a6f8795-2d95-478c-ba56-50f2f9ef69d4",
+      "name": "Assemble Future Self Response"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.blockedMessage }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        9536,
+        3328
+      ],
+      "id": "b1487d78-1d2b-4f6c-b6fb-183fc2260230",
+      "name": "Send Rate Limit Message",
+      "webhookId": "9003b4ab-4c9d-4871-87fd-7f45fc1e2905",
+      "credentials": {
+        "telegramApi": {
+          "id": "SiaFcV6fNjrCRqXJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "2bc94746-3ec0-48ae-bd79-7147fbac909c",
+                    "leftValue": "={{ $json.rateLimit.blocked }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "blocked"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "6b918f02-92c6-42e7-a830-5c41e35d7dda",
+                    "leftValue": "={{ $json.rateLimit.blocked }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "allowed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        9312,
+        3136
+      ],
+      "id": "3803d6b2-b0cc-492f-8956-dacc8f839cea",
+      "name": "Rate Limit Gate"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Bible API response before the Christian agent runs.\nconst data = $input.first().json;\nconst state = $('Bible Keywords1').first().json;\nlet citation = '';\nlet retrievalContext = '';\n\ntry {\n  if (data.reference && data.text) {\n    const ref = data.reference;\n    const text = String(data.text).trim().replace(/\\s+/g, ' ');\n    const contextText = text.length > 600 ? `${text.substring(0, 597)}...` : text;\n    citation = `📖 ${ref}: \"${contextText.length > 280 ? contextText.substring(0, 277) + '...' : contextText}\"`;\n    retrievalContext = `${ref}: ${contextText}`;\n  }\n} catch (e) {\n  retrievalContext = '';\n}\n\nreturn {\n  ...state,\n  citation,\n  retrievalContext\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11456,
+        2704
+      ],
+      "id": "07095439-988a-4e24-9f42-798e61e62074",
+      "name": "Format Bible Citation"
+    },
+    {
+      "parameters": {
+        "url": "=https://bible-api.com/{{ $json.bibleReference }}?translation={{ $json.language === 'es' ? 'rvr' : 'kjv' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        11232,
+        2704
+      ],
+      "id": "1c8d2fa9-1e3c-4f0b-ba61-952913cf2b84",
+      "name": "Bible Search"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        11696,
+        2336
+      ],
+      "id": "c45294be-65bc-478b-9f2c-929b84df9b47",
+      "name": "Groq Model",
+      "credentials": {
+        "groqApi": {
+          "id": "VggBTFEPvQfZRsEL",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.usermessage }}",
+        "options": {
+          "systemMessage": "={{ $json.language === 'es' ? `Eres Dios Padre hablando desde la tradición cristiana con amor paternal y misericordia. Responde en español, máximo 4 oraciones. Usa el contexto bíblico recuperado si es relevante, pero no inventes citas.\\n\\nContexto bíblico recuperado:\\n${$json.retrievalContext || 'Sin contexto bíblico recuperado.'}` : `You are God the Father speaking from the Christian tradition with paternal love and mercy. Reply in English, maximum 4 sentences. Use the retrieved biblical context when relevant, but do not invent citations.\\n\\nRetrieved biblical context:\\n${$json.retrievalContext || 'No retrieved biblical context.'}` }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        11680,
+        2592
+      ],
+      "id": "e9cd8ff5-892c-4a8d-992a-ef1344094f88",
+      "name": "AI Agent Christian"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        11744,
+        4384
+      ],
+      "id": "2679de1b-35f1-4182-9470-fe128746641c",
+      "name": "Merge AI and Bible"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        10288,
+        3600
+      ],
+      "id": "dc64abb7-951d-4124-b129-d2fd4c70c8da",
+      "name": "Groq Model Fast (Decomposer)",
+      "credentials": {
+        "groqApi": {
+          "id": "VggBTFEPvQfZRsEL",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lvmuwomwrzaehwixyicg.supabase.co/rest/v1/web_rate_limit",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "on_conflict",
+              "value": "ip_hash"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { ip_hash: $json.ipHash, count: $json.rateLimit.count, window_start: $json.rateLimit.windowStart, last_message_at: $now } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9536,
+        3520
+      ],
+      "id": "250fbbe0-714d-4c07-a642-bf8369596bff",
+      "name": "Update Web rate limit",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore the web message item after the rate-limit write.\n// Route by Deity needs the original normalized payload, not the web_rate_limit row.\nconst state = $('Evaluate Web Rate Limit').first().json;\nconst updateResult = $input.first().json;\n\nreturn {\n  ...state,\n  rateLimitUpdateOk: !updateResult?.error,\n  rateLimitUpdateResult: updateResult\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9760,
+        3520
+      ],
+      "id": "e786f0d3-e8ea-4521-8e68-fc9e127bd0ba",
+      "name": "Restore Web Message State"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "2bdc1c4b-ff4a-4e5d-bc31-f7bf7ca6307e",
+                    "leftValue": "={{ $json.deity }}",
+                    "rightValue": "jewish",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "jewish_rag"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "c5e64ca7-6044-498c-bf2b-a68f29c90f99",
+                    "leftValue": "={{ $json.deity }}",
+                    "rightValue": "christian",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "christian_rag"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "9a1cd75d-7d88-43f7-88e8-c677fc8dc1bc",
+                    "leftValue": "={{ ['buddhist', 'olympus', 'future_self'].includes($json.deity) }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "skip_decomposer"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        9984,
+        3120
+      ],
+      "id": "a4dbf085-321b-427a-9ae6-5b59448335a1",
+      "name": "Route Decomposition Need"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Non-RAG deities do not need an LLM decomposition step.\nconst state = $input.first().json;\nconst decomposition = {\n  intent: state.usermessage,\n  subQueries: [state.usermessage],\n  topics: [],\n  isExistential: true,\n  skipped: true\n};\n\nreturn {\n  ...state,\n  decomposition,\n  bestQuery: state.usermessage,\n  enrichedContext: `Intent: ${state.usermessage}\\nKey topics: none\\nSub-queries explored: ${state.usermessage}`\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10560,
+        3136
+      ],
+      "id": "22882e1c-d0d1-472a-9b67-4ec5afa161f6",
+      "name": "Bypass Decomposition"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.usermessage }}",
+        "options": {
+          "systemMessage": "={{ $json.language === 'es' ? `Eres los dioses olímpicos hablando con voz mítica, plural y sabia. Responde en español, máximo 4 oraciones.` : `You are the Olympian gods speaking with a mythic, plural, wise voice. Reply in English, maximum 4 sentences.` }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        11680,
+        3392
+      ],
+      "id": "9340f58a-538d-4a24-a793-e06e02a37c28",
+      "name": "AI Agent Olympus"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.usermessage }}",
+        "options": {
+          "systemMessage": "={{ $json.language === 'es' ? `Eres el Buda Shakyamuni hablando con serenidad, compasión y sabiduría. Responde en español, máximo 4 oraciones.` : `You are the Buddha Shakyamuni speaking with serenity, compassion, and wisdom. Reply in English, maximum 4 sentences.` }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        11680,
+        2992
+      ],
+      "id": "76ce0786-f26b-4589-974c-f545fa17b599",
+      "name": "AI Agent Buddhist"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "f540ea1e-8717-4c58-bfa8-590f086e1e5b",
+                    "leftValue": "={{ $json.deity }}",
+                    "rightValue": "jewish",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "jewish"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "fccf9d92-1c5e-41e7-81d8-571e1bffa2b9",
+                    "leftValue": "={{ $json.deity }}",
+                    "rightValue": "christian",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "christian"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "971aec7c-4605-4cf2-bab6-c9c786694f1e",
+                    "leftValue": "={{ $json.deity }}",
+                    "rightValue": "buddhist",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "buddhist"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "57c3c316-9fda-4b93-9bb3-d3a93ca1a4f3",
+                    "leftValue": "={{ $json.deity }}",
+                    "rightValue": "olympus",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "olympus"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "40ac6555-4434-4dfc-a7c8-c0410a2dd8bf",
+                    "leftValue": "={{ $json.deity }}",
+                    "rightValue": "future_self",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "future_self"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        10784,
+        3088
+      ],
+      "id": "7ad517f3-0ed2-4020-b0ef-b16f84171c12",
+      "name": "Route by Deity"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.usermessage }}",
+        "options": {
+          "systemMessage": "={{ $json.language === 'es' ? `Eres un analizador de preguntas. Devuelve SOLO JSON válido con: intent, subQueries, topics, isExistential. Máximo 3 subQueries y 2-4 topics. Sin markdown ni explicaciones.` : `You are a question analyzer. Return ONLY valid JSON with: intent, subQueries, topics, isExistential. Maximum 3 subQueries and 2-4 topics. No markdown or explanations.` }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        10208,
+        3376
+      ],
+      "id": "95f092f6-2b90-40cd-a721-3526d91037e7",
+      "name": "Query Decomposer"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the JSON output from Query Decomposer and merge with canonical state.\nconst decompOutput = $input.first().json.output || '{}';\nfunction stateFrom(nodeName) {\n  try {\n    const item = $(nodeName).first();\n    return item ? item.json : null;\n  } catch {\n    return null;\n  }\n}\n\n// Estado canónico: viene de Restore * (después del rate limit), no del Switch.\nconst state =\n  stateFrom('Restore Web Message State') ||\n  stateFrom('Restore Telegram Message State') ||\n  stateFrom('Normalize Context');\n\nif (!state) {\n  throw new Error('No hay estado. Web: Restore Web Message State. Telegram: Restore Telegram Message State.');\n}\n\nlet decomposition = {\n  intent: state.usermessage,\n  subQueries: [state.usermessage],\n  topics: [],\n  isExistential: true\n};\n\ntry {\n  let jsonText = decompOutput;\n  const jsonMatch = decompOutput.match(/```(?:json)?\\s*(\\{[\\s\\S]*?\\})\\s*```/);\n  if (jsonMatch) {\n    jsonText = jsonMatch[1];\n  } else {\n    const firstBrace = decompOutput.indexOf('{');\n    const lastBrace = decompOutput.lastIndexOf('}');\n    if (firstBrace >= 0 && lastBrace > firstBrace) {\n      jsonText = decompOutput.substring(firstBrace, lastBrace + 1);\n    }\n  }\n  const parsed = JSON.parse(jsonText);\n  decomposition = {\n    intent: parsed.intent || state.usermessage,\n    subQueries: Array.isArray(parsed.subQueries) && parsed.subQueries.length > 0 ? parsed.subQueries.slice(0, 3) : [state.usermessage],\n    topics: Array.isArray(parsed.topics) ? parsed.topics.slice(0, 4) : [],\n    isExistential: parsed.isExistential !== undefined ? parsed.isExistential : true\n  };\n} catch (e) {\n  decomposition.parseError = e.message;\n}\n\nreturn {\n  ...state,\n  decomposition,\n  bestQuery: decomposition.subQueries[0],\n  enrichedContext: `Intent: ${decomposition.intent}\\nKey topics: ${decomposition.topics.join(', ') || 'none'}\\nSub-queries explored: ${decomposition.subQueries.join('; ')}`\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10560,
+        3376
+      ],
+      "id": "c0de5b8b-1429-4113-85c3-ee411e64d743",
+      "name": "Parse Decomposition"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Merge State').item.json.chatId }}",
+        "text": "🔄 Memoria reiniciada / Memory reset\n\n🕊️ ¿En qué idioma prefieres conversar?\n🕊️ Which language do you prefer?",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        8864,
+        2944
+      ],
+      "id": "0627a2f9-95c2-4b54-82c6-997949c51dfe",
+      "name": "Send Language Picker (Forget)",
+      "webhookId": "c13d25e4-3d52-4eb0-8a29-5226ddc8fcd9",
+      "credentials": {
+        "telegramApi": {
+          "id": "SiaFcV6fNjrCRqXJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Telegram Rate Limit Evaluator - runs before LLM/API work.\nconst canonicalState = $('Normalize Context').first().json;\nconst language = canonicalState.language || 'es';\nlet rateLimitState = $input.first().json;\n\nfunction extract(data) {\n  if (!data) return null;\n  if (Array.isArray(data)) return data.length > 0 ? extract(data[0]) : null;\n  if (data.json && typeof data.json === 'object') return extract(data.json);\n  if (data.chat_id !== undefined && data.chat_id !== null) return data;\n  return null;\n}\n\nconst state = extract(rateLimitState);\nconst now = new Date();\nconst WINDOW_MS = 24 * 60 * 60 * 1000;\nconst MAX_REQUESTS = 3;\nlet count = 0;\nlet windowStart = now;\nlet blocked = false;\nlet timeRemaining = null;\nlet isNewWindow = false;\n\nif (state) {\n  count = state.count || 0;\n  windowStart = new Date(state.window_start || now.toISOString());\n  const elapsed = now - windowStart;\n  if (elapsed >= WINDOW_MS) {\n    count = 0;\n    windowStart = now;\n    isNewWindow = true;\n  } else if (count >= MAX_REQUESTS) {\n    blocked = true;\n    const msLeft = WINDOW_MS - elapsed;\n    timeRemaining = {\n      hours: Math.floor(msLeft / (60 * 60 * 1000)),\n      minutes: Math.floor((msLeft % (60 * 60 * 1000)) / (60 * 1000)),\n      totalMs: msLeft\n    };\n  }\n} else {\n  isNewWindow = true;\n}\n\nconst newCount = blocked ? count : count + 1;\nconst blockedMessage = blocked\n  ? (language === 'es'\n      ? `🕊️${MAX_REQUESTS} veces en las últimas 24 horas es suficiente, mi pequeñ@ curios@.\\n\\nPuedes volver en ${timeRemaining.hours}h ${timeRemaining.minutes}min.`\n      : `🕊️${MAX_REQUESTS} times in the last 24 hours, is enough my little curious girl/boy.\\n\\nYou can return in ${timeRemaining.hours}h ${timeRemaining.minutes}min.`)\n  : '';\n\nreturn {\n  ...canonicalState,\n  rateLimit: {\n    blocked,\n    count: newCount,\n    windowStart: windowStart.toISOString(),\n    isNewWindow,\n    timeRemaining\n  },\n  blockedMessage\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9088,
+        3136
+      ],
+      "id": "6c116dbd-308e-4cde-b304-d0d8fb2480cd",
+      "name": "Evaluate Rate Limit"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.chatId }}_jewish"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        11824,
+        2336
+      ],
+      "id": "d56eade6-915d-4125-8ab2-dad78b1aca65",
+      "name": "Memory Jewish"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Input - normalize Telegram events for deterministic routing\nconst input = $input.first().json;\nconst message = input.message;\nconst callback = input.callback_query;\n\nconst chat = message?.chat || callback?.message?.chat || null;\nconst from = message?.from || callback?.from || {};\nconst chatId = chat?.id;\nconst username = from.username || chat?.username || from.first_name || 'unknown';\n\nif (!chatId) {\n  throw new Error(`Telegram event without chat id: ${JSON.stringify(input)}`);\n}\n\nlet eventType = '';\nlet selectedLanguage = null;\nlet selectedDeity = null;\nlet usermessage = '';\nconst callbackId = callback?.id || null;\nconst callbackData = callback?.data || null;\nconst messageId = message?.message_id || callback?.message?.message_id || null;\n\nconst deityByCallback = {\n  'deity:jewish': 'jewish',\n  'deity:christian': 'christian',\n  'deity:buddhist': 'buddhist',\n  'deity:olympus': 'olympus',\n  'deity:future_self': 'future_self'\n};\n\nif (callback) {\n  const data = String(callback.data || '');\n\n  if (data === 'lang:es' || data === 'lang:en') {\n    eventType = 'save_language';\n    selectedLanguage = data.split(':')[1];\n  } else if (deityByCallback[data]) {\n    eventType = 'save_deity';\n    selectedDeity = deityByCallback[data];\n  } else {\n    throw new Error(`Unsupported callback data: ${data}`);\n  }\n} else if (message?.text) {\n  const text = message.text.trim();\n\n  if (text === '/start') {\n    eventType = 'show_language_picker';\n  } else if (text === '/forget') {\n    eventType = 'forget';\n  } else {\n    eventType = 'process_message';\n    usermessage = text;\n  }\n} else {\n  throw new Error(`Unsupported Telegram event shape: ${JSON.stringify(input)}`);\n}\n\nreturn {\n  chatId,\n  username,\n  eventType,\n  selectedLanguage,\n  selectedDeity,\n  usermessage,\n  source: 'telegram',\n  callbackId,\n  callbackData,\n  messageId\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7520,
+        2368
+      ],
+      "id": "17bc48db-d47e-4600-a6ff-23d6118a25f7",
+      "name": "Parse Input"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lvmuwomwrzaehwixyicg.supabase.co/rest/v1/user_state",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "on_conflict",
+              "value": "chat_id"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { chat_id: $json.chatId, language: $json.selectedLanguage, username: $json.username } }}",
+        "options": {}
+      },
+      "id": "9df7515b-e449-4ab7-9bc3-70a0106ea4b4",
+      "name": "save language",
+      "alwaysOutputData": true,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8640,
+        2368
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lvmuwomwrzaehwixyicg.supabase.co/rest/v1/user_state",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "on_conflict",
+              "value": "chat_id"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { chat_id: $json.chatId, deity: $json.selectedDeity, username: $json.username, language: $json.language } }}",
+        "options": {}
+      },
+      "id": "86e73ff3-c989-4159-85d4-68f33fab6c0f",
+      "name": "Save deity",
+      "alwaysOutputData": true,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8640,
+        2752
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5i3O9FIr6G3mLunP",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## FIX: State Persistence + Routing\n\n**Problem:** Telegram users looped back to pickers or stopped before the deity router.\n\n**Root causes fixed:**\n- Get User State used the wrong HTTP auth mode and Supabase rejected it without apikey.\n- save_language/save_deity were upserts without explicit on_conflict=chat_id.\n- Merge State treated failed reads like missing user state.\n- Update Rate Limit replaced the message item with a rate_limit row, so Route by Deity lost deity/usermessage.\n\n**Current design:**\n- State reads/writes use Supabase credentials and explicit conflict keys.\n- Route Event only routes normalized eventType values.\n- After rate-limit writes, Restore Message State nodes pass the original message context into Route by Deity.",
+        "height": 280,
+        "width": 380,
+        "color": 3
+      },
+      "id": "6c8a9880-89e1-428b-99a3-338e38da9244",
+      "name": "Fix Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        9024,
+        1888
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Restore Telegram Message State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Web": {
+      "main": [
+        [
+          {
+            "node": "Web Normalize State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Normalize State": {
+      "main": [
+        [
+          {
+            "node": "Normalize Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source Switch": {
+      "main": [
+        [
+          {
+            "node": "Get Web Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Web Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Web Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Web Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Web Rate Limit Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Rate Limit Gate": {
+      "main": [
+        [
+          {
+            "node": "Build Blocked Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Web rate limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Blocked Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Source Switch": {
+      "main": [
+        [
+          {
+            "node": "Build Web Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Web Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Jewish1": {
+      "main": [
+        [
+          {
+            "node": "Assemble Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge AI and Citation1": {
+      "main": [
+        [
+          {
+            "node": "Assemble Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bible Keywords1": {
+      "main": [
+        [
+          {
+            "node": "Bible Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Christian1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Christian",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Buddhist1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Buddhist",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Olympus1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Olympus",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Future Self1": {
+      "main": [
+        [
+          {
+            "node": "Assemble Future Self Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Future Self1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Future Self1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User State": {
+      "main": [
+        [
+          {
+            "node": "Merge State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge State": {
+      "main": [
+        [
+          {
+            "node": "Normalize Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Context": {
+      "main": [
+        [
+          {
+            "node": "Route Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Event": {
+      "main": [
+        [
+          {
+            "node": "Send Language Picker",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "save language",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Deity Picker (Forced)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save deity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Source Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Welcome": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete State": {
+      "main": [
+        [
+          {
+            "node": "Send Language Picker (Forget)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Conversation": {
+      "main": [
+        [
+          {
+            "node": "Build LangFuse Trace",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Restore Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Response": {
+      "main": [
+        [
+          {
+            "node": "Log Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build LangFuse Trace": {
+      "main": [
+        [
+          {
+            "node": "Send to LangFuse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Final Response": {
+      "main": [
+        [
+          {
+            "node": "Final Source Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sefaria Search": {
+      "main": [
+        [
+          {
+            "node": "Format Citation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sefaria Keywords": {
+      "main": [
+        [
+          {
+            "node": "Sefaria Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Citation": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Jewish1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Christian Response": {
+      "main": [
+        [
+          {
+            "node": "Log Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Buddhist Response": {
+      "main": [
+        [
+          {
+            "node": "Log Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Olympus Response": {
+      "main": [
+        [
+          {
+            "node": "Log Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Future Self Response": {
+      "main": [
+        [
+          {
+            "node": "Log Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Gate": {
+      "main": [
+        [
+          {
+            "node": "Send Rate Limit Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Bible Citation": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Christian",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bible Search": {
+      "main": [
+        [
+          {
+            "node": "Format Bible Citation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Jewish1",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent Christian",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent Buddhist",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent Olympus",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent Future Self1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Christian": {
+      "main": [
+        [
+          {
+            "node": "Assemble Christian Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge AI and Bible": {
+      "main": [
+        [
+          {
+            "node": "Assemble Christian Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Model Fast (Decomposer)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Query Decomposer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Web rate limit": {
+      "main": [
+        [
+          {
+            "node": "Restore Web Message State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Telegram Message State": {
+      "main": [
+        [
+          {
+            "node": "Route Decomposition Need",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Web Message State": {
+      "main": [
+        [
+          {
+            "node": "Route Decomposition Need",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Decomposition Need": {
+      "main": [
+        [
+          {
+            "node": "Query Decomposer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Decomposer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bypass Decomposition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bypass Decomposition": {
+      "main": [
+        [
+          {
+            "node": "Route by Deity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Olympus": {
+      "main": [
+        [
+          {
+            "node": "Assemble Olympus Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Buddhist": {
+      "main": [
+        [
+          {
+            "node": "Assemble Buddhist Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Deity": {
+      "main": [
+        [
+          {
+            "node": "Sefaria Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bible Keywords1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent Buddhist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent Olympus",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent Future Self1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Decomposer": {
+      "main": [
+        [
+          {
+            "node": "Parse Decomposition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Decomposition": {
+      "main": [
+        [
+          {
+            "node": "Route by Deity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Jewish": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Jewish1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Input": {
+      "main": [
+        [
+          {
+            "node": "Get User State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save language": {
+      "main": [
+        [
+          {
+            "node": "Send Deity Picker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save deity": {
+      "main": [
+        [
+          {
+            "node": "Build Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0286113e-b1cb-439f-bfc3-fab3c2b890ba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1fc0459bd7686b4af049f4c1a25e39fe8dfe6e13943d659ed4079171892613d8"
+  },
+  "id": "g7IcwtaE9GEsiQPs",
+  "tags": []
+}
