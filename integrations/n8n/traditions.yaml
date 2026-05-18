@@ -1,0 +1,196 @@
+# Configuration for all 11 traditions.
+# Each tradition is a tenant per ADR-0006. Touching one entry must not
+# affect another. The schema is enforced by tests in `evals/`.
+
+traditions:
+
+  catholic:
+    family: christianity
+    display_name: "El Dios Católico"
+    display_emoji: "✝️"
+    aliases: [catolico, cristiano, jesus, dios]
+    canonical_corpus:
+      retriever: bible_api
+      filter: { translation: "RVR1909" }
+      additional_corpora: [catechism, encyclicals]
+    voice:
+      prompt_file: "prompts/catholic.md"
+      version: 1
+    tts_voice_id: onyx
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  protestant:
+    family: christianity
+    display_name: "Dios — tradición protestante"
+    display_emoji: "📖"
+    aliases: [protestante, sola_scriptura]
+    canonical_corpus:
+      retriever: bible_api
+      filter: { translation: "KJV" }
+      additional_corpora: [westminster_confession]
+    voice:
+      prompt_file: "prompts/protestant.md"
+      version: 1
+    tts_voice_id: onyx
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  lutheran:
+    family: christianity
+    display_name: "Dios — tradición luterana"
+    display_emoji: "🪦"  # 95 theses energy
+    aliases: [luterano, luther]
+    canonical_corpus:
+      retriever: bible_api
+      filter: { translation: "KJV" }
+      additional_corpora: [augsburg_confession, small_catechism]
+    voice:
+      prompt_file: "prompts/lutheran.md"
+      version: 1
+    tts_voice_id: onyx
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  evangelical:
+    family: christianity
+    display_name: "Dios — tradición evangélica"
+    display_emoji: "🎸"  # worship band activated
+    aliases: [evangelico, born_again]
+    canonical_corpus:
+      retriever: bible_api
+      filter: { translation: "NVI" }
+      additional_corpora: []
+    voice:
+      prompt_file: "prompts/evangelical.md"
+      version: 1
+    tts_voice_id: onyx
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  judaism_orthodox:
+    family: judaism
+    display_name: "Hashem — tradición ortodoxa"
+    display_emoji: "✡️"
+    aliases: [judio_ortodoxo, ortodoxo, orthodox, halacha]
+    canonical_corpus:
+      retriever: sefaria
+      filter: { categories: ["Tanakh", "Mishnah", "Talmud", "Halakha"] }
+    voice:
+      prompt_file: "prompts/judaism_orthodox.md"
+      version: 1
+    tts_voice_id: echo
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  judaism_conservative:
+    family: judaism
+    display_name: "Hashem — tradición conservadora"
+    display_emoji: "✡️"
+    aliases: [judio_conservador, conservador, masorti]
+    canonical_corpus:
+      retriever: sefaria
+      filter: { categories: ["Tanakh", "Mishnah", "Talmud", "Modern Commentary"] }
+    voice:
+      prompt_file: "prompts/judaism_conservative.md"
+      version: 1
+    tts_voice_id: echo
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  judaism_reform:
+    family: judaism
+    display_name: "Hashem — tradición reformista"
+    display_emoji: "🌿"  # vibes-based torah
+    aliases: [judio_reformista, reformista, reform]
+    canonical_corpus:
+      retriever: sefaria
+      filter: { categories: ["Tanakh", "Modern Commentary", "Jewish Thought"] }
+    voice:
+      prompt_file: "prompts/judaism_reform.md"
+      version: 1
+    tts_voice_id: echo
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  islam:
+    family: islam
+    display_name: "Allah"
+    display_emoji: "☪️"
+    aliases: [islam, allah, musulman]
+    canonical_corpus:
+      retriever: quran_com
+      filter: { translation: "en.sahih" }
+      additional_corpora: [bukhari, muslim]
+    voice:
+      prompt_file: "prompts/islam.md"
+      version: 1
+    tts_voice_id: fable
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  hindu:
+    family: hinduism
+    display_name: "Krishna / Brahman"
+    display_emoji: "🕉️"
+    aliases: [hindu, krishna, gita, brahman]
+    canonical_corpus:
+      retriever: bhagavad_gita_api
+      filter: { translator_id: "swami_sivananda" }
+      additional_corpora: [upanishads]
+    voice:
+      prompt_file: "prompts/hindu.md"
+      version: 1
+    tts_voice_id: nova
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  buddhist:
+    family: buddhism
+    display_name: "Buda y el Dharma"
+    display_emoji: "☸️"
+    aliases: [buda, budista, dharma]
+    canonical_corpus:
+      retriever: sutta_central
+      filter: { collection: ["sutta", "vinaya"] }
+    voice:
+      prompt_file: "prompts/buddhist.md"
+      version: 1
+    tts_voice_id: shimmer
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: active
+
+  hellenic:
+    family: hellenic
+    display_name: "Las voces del panteón griego"
+    display_emoji: "⚡"
+    aliases: [griega, griego, helenico, zeus]
+    canonical_corpus:
+      retriever: theoi_local
+      filter: { sources: ["hesiod", "homeric_hymns", "orphic_fragments"] }
+    voice:
+      prompt_file: "prompts/hellenic.md"
+      version: 1
+    tts_voice_id: alloy
+    rate_limit: { rpm: 60, tpm: 60000 }
+    moderation_status: review  # under careful review until prompt is tuned
+
+# Global defaults applied unless overridden per-tradition
+defaults:
+  llm:
+    provider: gemini
+    model: gemini-2.5-flash-lite
+    temperature: 0.6
+    max_output_tokens: 800
+  embedding:
+    provider: gemini
+    model: text-embedding-004
+  retrieval:
+    top_k: 5
+    rerank: false
+  memory:
+    history_window: 20
+    persistence: postgres
+  safety:
+    require_disclaimer_first_turn: true
+    refuse_cross_tradition_citation: true
