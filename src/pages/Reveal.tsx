@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { postAsk } from '../api';
 import { getWebhookUrl, MIN_TYPING_MS, PENDING_KEY } from '../config';
 import { useApp } from '../context/useApp';
+import { HeavenlyWriting } from '../components/HeavenlyWriting';
 import { i18n, t, type Deity, type Lang } from '../i18n';
 
 type Pending = {
@@ -44,8 +45,14 @@ export function Reveal() {
   const [citation, setCitation] = useState('');
   const [blockedMsg, setBlockedMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [entered, setEntered] = useState(false);
 
   const webhookUrl = getWebhookUrl();
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   useEffect(() => {
     if (!pending) {
@@ -140,23 +147,28 @@ export function Reveal() {
   const pathLabel = copy.labels[pending.deity];
 
   return (
-    <article className="page page--reveal">
+    <article className={`page page--reveal${entered ? ' page--reveal-enter' : ''}`}>
       {phase === 'typing' ? (
-        <div className="reveal-stage reveal-stage--typing fade-in">
-          <p className="reveal-eyebrow">{copy.revealWaiting}</p>
+        <div className="reveal-stage reveal-stage--typing">
+          <HeavenlyWriting label={copy.revealWaiting} />
+          <p className="reveal-eyebrow">{pathLabel}</p>
           <h1 className="reveal-typing">
             {copy.revealTyping}
             <span className="dots" aria-hidden>
               …
             </span>
           </h1>
+          <div className="reveal-question-ghost">
+            <span className="reveal-question-ghost__label">{copy.yourQuestionLabel}</span>
+            <p>{pending.message}</p>
+          </div>
         </div>
       ) : null}
 
       {phase === 'letter' ? (
         <div className="reveal-stage fade-in-up">
           <p className="reveal-eyebrow">{pathLabel}</p>
-          <div className="letter">
+          <div className="letter letter--ancient">
             <p className="letter__body">{response}</p>
             {citation ? (
               <blockquote className="letter__citation">

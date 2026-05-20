@@ -1,4 +1,5 @@
 import { Link, Outlet } from 'react-router-dom';
+import { CelestialLogo } from './CelestialLogo';
 import { useApp } from '../context/useApp';
 import { i18n, t } from '../i18n';
 import { LanguageToggle } from './LanguageToggle';
@@ -16,9 +17,10 @@ export function Layout() {
 
   return (
     <div className="shell">
-      <header className="site-header">
+      <header className="site-header site-header--framed">
         <Link to="/" className="site-logo">
-          {copy.siteName}
+          <CelestialLogo size="sm" className="site-logo__mark" />
+          <span>{copy.siteName}</span>
         </Link>
         <div className="site-header__end">
           <span className="quota" data-low={questionsLeft <= 1 ? 'true' : undefined}>

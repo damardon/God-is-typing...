@@ -463,9 +463,9 @@
     },
     {
       "parameters": {
-        "content": "## god_is_typing\n\n**Architecture:** Telegram + Web share a canonical context before routing.\n\n**Flow:**\nInput → Normalize Context → Route Event → Rate Limit → Deity Route → Optional RAG → Agent → Assemble → Send/Log\n\n**Efficiency:** Rate limit runs before Groq/API calls. Buddhist/Olympus/Future Self skip decomposer/RAG.\n\n**RAG:** Jewish and Christian branches inject retrieved context into the agent prompt before answering.\n\n**Required Supabase constraints:**\n- user_state.chat_id UNIQUE\n- rate_limit.chat_id UNIQUE\n- web_rate_limit.ip_hash UNIQUE",
-        "height": 380,
-        "width": 380,
+        "content": "## god_is_typing v2.6\n\n### ES — Multi-canal, un motor\n• Contexto canónico tras Normalize Context\n• Rate limit ANTES de Groq/RAG (3/24h)\n• Judaísmo/Cristianismo: Decomposer + RAG · Resto: bypass\n• Salida: Final Source Switch (web→JSON · TG→Send)\n• Log + LangFuse · Supabase UNIQUE en chat_id / ip_hash\n\n### EN — Multi-channel, one engine\n• Canonical context after Normalize Context\n• Rate limit BEFORE Groq/RAG (3/24h)\n• Jewish/Christian: Decomposer + RAG · Others: bypass\n• Egress: Final Source Switch (web→JSON · TG→Send)\n• Log + LangFuse · Supabase UNIQUE on chat_id / ip_hash\n\nNormalize → Route → Rate Limit → Deity → Assemble → Send/Log",
+        "height": 340,
+        "width": 440,
         "color": 6
       },
       "type": "n8n-nodes-base.stickyNote",

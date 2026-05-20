@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CelestialLogo } from '../components/CelestialLogo';
 import { TELEGRAM_BOT_URL } from '../config';
 import { useApp } from '../context/useApp';
 import { i18n, t } from '../i18n';
@@ -11,21 +12,24 @@ export function Landing() {
 
   return (
     <article className="page page--landing fade-in">
-      <p className="eyebrow">{copy.tagline}</p>
-      <h1 className="hero-title">{copy.siteName}</h1>
-      <p className="hero-lead">{copy.landingSub}</p>
-      <p className="hero-note">{copy.welcomeIntro1}</p>
+      <div className="landing-hero-block">
+        <div className="hero-frame">
+          <div className="hero-logo-wrap">
+            <CelestialLogo size="lg" className="hero-logo" title={copy.siteName} />
+          </div>
+          <p className="eyebrow eyebrow--hero">{copy.tagline}</p>
+          <h1 className="hero-title">{copy.siteName}</h1>
+          <p className="hero-lead">{copy.landingSub}</p>
+        </div>
 
-      <div className="cta-stack">
-        <Link to="/ask" className="btn btn--primary">
-          {copy.ctaReceive}
-        </Link>
-        <a href={TELEGRAM_BOT_URL} className="btn btn--secondary" target="_blank" rel="noreferrer">
-          {copy.ctaTelegram}
-        </a>
-        <Link to="/browse" className="btn btn--ghost">
-          {copy.ctaBrowse}
-        </Link>
+        <div className="cta-stack">
+          <Link to="/ask" className="btn btn--primary btn--wide">
+            {copy.ctaReceive}
+          </Link>
+          <a href={TELEGRAM_BOT_URL} className="btn btn--secondary btn--wide" target="_blank" rel="noreferrer">
+            {copy.ctaTelegram}
+          </a>
+        </div>
       </div>
 
       <details

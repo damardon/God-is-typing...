@@ -25,10 +25,8 @@ export function DeityChips({ value, onChange }: Props) {
           <span className="deity-chip__glyph" aria-hidden>
             {DEITY_ICON[d]}
           </span>
-          <span className="deity-chip__text">
-            <span className="deity-chip__label">{copy.labels[d]}</span>
-            <span className="deity-chip__sub">{copy.subs[d]}</span>
-          </span>
+          <span className="deity-chip__label">{copy.labels[d]}</span>
+          <span className="deity-chip__sub">{copy.subs[d]}</span>
         </button>
       ))}
     </div>
